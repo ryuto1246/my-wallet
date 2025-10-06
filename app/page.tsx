@@ -18,7 +18,7 @@ export default function Home() {
             <Link href="/login">
               <Button
                 variant="ghost"
-                className="rounded-full hover:bg-gray-100 text-gray-700 hover:text-gray-900"
+                className="rounded-full text-gray-700 hover:text-gray-900 hover:bg-gray-100"
               >
                 ログイン
               </Button>
@@ -62,7 +62,7 @@ export default function Home() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg px-10 py-7 rounded-full border-2 border-gray-300 hover:bg-gray-100 hover:border-gray-400 transition-all"
+                  className="text-lg px-10 py-7 rounded-full border-2 border-gray-300 bg-white text-gray-900 hover:text-gray-900 hover:bg-gray-100 hover:border-gray-400 transition-all"
                 >
                   機能を見る
                 </Button>

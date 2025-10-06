@@ -170,7 +170,7 @@ export function TransactionForm({
                     type="button"
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal bg-white text-gray-900 hover:text-gray-900",
                       !field.value && "text-muted-foreground"
                     )}
                     onClick={() => setShowCalendar(!showCalendar)}
@@ -357,7 +357,7 @@ export function TransactionForm({
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
+                className="flex-1 bg-white text-gray-900 hover:text-gray-900"
                 onClick={() => onOpenChange(false)}
                 disabled={loading}
               >

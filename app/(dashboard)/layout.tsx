@@ -80,7 +80,7 @@ export default function DashboardLayout({
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="rounded-full border-2 hover:bg-gray-100 hover:border-gray-400 transition-all"
+              className="rounded-full border-2 bg-white text-gray-900 hover:text-gray-900 hover:bg-gray-100 hover:border-gray-400 transition-all"
             >
               ログアウト
             </Button>
