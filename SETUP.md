@@ -2,66 +2,38 @@
 
 このドキュメントでは、Smart Wallet アプリのセットアップ手順を説明します。
 
-## 必要な準備
+## 📋 必要なもの
 
-### 1. Firebase プロジェクトの作成
+- Node.js 18 以上
+- npm
+- Google アカウント（Firebase 用）
+- Git
 
-1. [Firebase Console](https://console.firebase.google.com/)にアクセス
-2. 「プロジェクトを追加」をクリック
-3. プロジェクト名を入力（例：smart-wallet）
-4. Google Analytics は任意で有効化
-5. プロジェクトを作成
+## 🚀 クイックスタート
 
-### 2. Firebase 認証の設定
+既に Firebase プロジェクト（wallet-2029e）が設定されています！
 
-1. Firebase プロジェクトで「Authentication」を選択
-2. 「始める」をクリック
-3. 「Sign-in method」タブで以下を有効化：
-   - メール/パスワード
-   - Google
+### 1. 環境変数の設定
 
-### 3. Firestore データベースの設定
+プロジェクトルートに `.env.local` ファイルを作成：
 
-1. Firebase プロジェクトで「Firestore Database」を選択
-2. 「データベースの作成」をクリック
-3. 「本番環境モード」で開始（後でルールをデプロイします）
-4. ロケーションを選択（asia-northeast1 推奨）
+**方法 1: VSCode で作成**
 
-### 4. Firebase Storage の設定
-
-1. Firebase プロジェクトで「Storage」を選択
-2. 「始める」をクリック
-3. 「本番環境モード」で開始
-
-### 5. Firebase 設定情報の取得
-
-1. Firebase プロジェクト設定（⚙️ アイコン）→「プロジェクトの設定」
-2. 「全般」タブの「マイアプリ」セクションで「ウェブアプリ」を追加
-3. アプリのニックネームを入力（例：Smart Wallet Web）
-4. Firebase Hosting は今はスキップ
-5. 表示される設定情報をコピー
-
-### 6. Gemini API キーの取得
-
-1. [Google AI Studio](https://makersuite.google.com/app/apikey)にアクセス
-2. 「Create API Key」をクリック
-3. API キーをコピー
-
-### 7. 環境変数の設定
-
-プロジェクトルートに`.env.local`ファイルを作成：
+1. 左サイドバーで右クリック → 「新しいファイル」
+2. ファイル名: `.env.local`
+3. 以下をコピー&ペースト：
 
 ```bash
 # Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key_here
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyA9ksGNBDbEdkQoorkaG-hHVWS2bEJLEwo
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=wallet-2029e.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=wallet-2029e
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=wallet-2029e.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=981798285165
+NEXT_PUBLIC_FIREBASE_APP_ID=1:981798285165:web:b91692a1c392df616cb464
 
-# Gemini API Configuration
-GEMINI_API_KEY=your_gemini_api_key_here
+# Gemini API Configuration (後で設定)
+GEMINI_API_KEY=
 
 # Google Calendar API Configuration (Phase 6で必要)
 GOOGLE_CALENDAR_CLIENT_ID=
@@ -76,45 +48,149 @@ NEXT_PUBLIC_APP_NAME=Smart Wallet
 NODE_ENV=development
 ```
 
-**重要**: `.env.local`ファイルは`.gitignore`に含まれているため、Git にコミットされません。
-
-## インストールと起動
-
-### 依存関係のインストール
+**方法 2: ターミナルで作成**
 
 ```bash
-npm install
+cat > .env.local << 'EOF'
+# 上記の内容をここに貼り付け
+EOF
 ```
 
-### Firebase ルールのデプロイ
+### 2. 開発サーバーの起動
 
 ```bash
-# Firebase CLIのインストール（未インストールの場合）
-npm install -g firebase-tools
-
-# Firebaseにログイン
-firebase login
-
-# Firebaseプロジェクトの初期化
-firebase use --add
-# プロジェクトを選択してエイリアスを設定（例：default）
-
-# セキュリティルールのデプロイ
-firebase deploy --only firestore:rules,storage:rules
-
-# インデックスのデプロイ
-firebase deploy --only firestore:indexes
-```
-
-### 開発サーバーの起動
-
-```bash
+# 既存のサーバーを停止している場合
 npm run dev
 ```
 
 ブラウザで http://localhost:3000 を開きます。
 
-## テストの実行
+### 3. アプリをテスト
+
+1. 「無料で始める」をクリック
+2. メールアドレスとパスワードでアカウント作成
+3. ダッシュボードにリダイレクトされることを確認
+
+## 🔥 Firebase の詳細設定
+
+### 現在の状態
+
+- ✅ プロジェクト作成済み（wallet-2029e）
+- ✅ Firebase CLI 設定済み
+- ✅ Firestore セキュリティルール デプロイ済み
+- ⚠️ Storage 設定が必要（下記参照）
+
+### Firebase Console での確認事項
+
+[Firebase Console](https://console.firebase.google.com/project/wallet-2029e/overview) で以下を確認：
+
+#### 1. Authentication（認証）
+
+**URL**: https://console.firebase.google.com/project/wallet-2029e/authentication
+
+必須設定:
+
+- [ ] **メール/パスワード認証を有効化**
+
+  1. 「Sign-in method」タブを開く
+  2. 「メール/パスワード」をクリック
+  3. 「有効にする」トグルを ON
+  4. 「保存」をクリック
+
+- [ ] **Google 認証を有効化**
+  1. 「Google」をクリック
+  2. 「有効にする」トグルを ON
+  3. サポートメールを選択
+  4. 「保存」をクリック
+
+#### 2. Firestore Database
+
+**URL**: https://console.firebase.google.com/project/wallet-2029e/firestore
+
+確認事項:
+
+- [ ] データベースが作成されている
+- [ ] セキュリティルールが適用されている（「ルール」タブで確認）
+
+**データベースがない場合:**
+
+```bash
+# Firebase Consoleで作成後、ルールをデプロイ
+firebase deploy --only firestore:rules
+```
+
+#### 3. Storage
+
+**URL**: https://console.firebase.google.com/project/wallet-2029e/storage
+
+**重要**: Storage は手動で設定が必要です。
+
+1. **Storage を有効化**
+
+   - 「始める」をクリック
+   - 「本番環境モード」を選択
+   - ロケーション確認（asia-northeast1）
+   - 「完了」をクリック
+
+2. **セキュリティルールを設定**
+   - 「ルール」タブを開く
+   - 以下をコピー&ペースト:
+
+```javascript
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    match /transactions/{userId}/{transactionId}/{fileName} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated()
+                   && request.auth.uid == userId
+                   && isValidSize()
+                   && isImage();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated()
+                   && request.auth.uid == userId
+                   && isValidSize()
+                   && isImage();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+```
+
+- 「公開」をクリック
+
+## 📦 依存関係のインストール（初回のみ）
+
+```bash
+# パッケージのインストール
+npm install
+
+# Playwrightブラウザのインストール（E2Eテスト用）
+npx playwright install
+```
+
+## 🧪 テストの実行
 
 ### ユニットテスト
 
@@ -132,9 +208,6 @@ npm run test:coverage
 ### E2E テスト
 
 ```bash
-# Playwrightブラウザのインストール（初回のみ）
-npx playwright install
-
 # E2Eテストを実行
 npm run test:e2e
 
@@ -142,32 +215,121 @@ npm run test:e2e
 npm run test:e2e:ui
 ```
 
-## トラブルシューティング
+### 型チェック
 
-### Firebase の初期化エラー
+```bash
+npm run type-check
+```
 
-- `.env.local`ファイルが正しく設定されているか確認
-- Firebase プロジェクトの設定情報が正しいか確認
-- 開発サーバーを再起動
+## 🔧 Firebase CLI コマンド
 
-### 認証エラー
+```bash
+# プロジェクト一覧
+firebase projects:list
 
-- Firebase Console で認証方法が有効になっているか確認
-- ブラウザのコンソールでエラーメッセージを確認
+# 現在のプロジェクト確認
+firebase use
+
+# Firestoreルールをデプロイ
+firebase deploy --only firestore:rules
+
+# Firestoreインデックスをデプロイ
+firebase deploy --only firestore:indexes
+
+# すべてをデプロイ
+firebase deploy
+```
+
+## 🐛 トラブルシューティング
+
+### エラー: "Firebase: Error (auth/unauthorized-domain)"
+
+**原因**: localhost が承認済みドメインに含まれていない
+
+**解決策**:
+
+1. [Authentication 設定](https://console.firebase.google.com/project/wallet-2029e/authentication/settings)を開く
+2. 「承認済みドメイン」タブ
+3. `localhost` が含まれているか確認（通常は自動で追加されます）
+
+### エラー: "Missing or insufficient permissions"
+
+**原因**: Firestore のセキュリティルールが適用されていない
+
+**解決策**:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+### 認証が動作しない
+
+**確認事項**:
+
+1. `.env.local` ファイルが存在するか
+2. Firebase Console で認証方法が有効化されているか
+3. 開発サーバーを再起動したか
+
+**デバッグ**:
+
+```bash
+# 環境変数を確認
+cat .env.local
+
+# 開発サーバーを再起動
+# Ctrl+C で停止してから
+npm run dev
+```
+
+### データが保存されない
+
+1. ブラウザのコンソール（F12）を開く
+2. エラーメッセージを確認
+3. Firebase Console の Firestore で「ルール」タブを確認
 
 ### ビルドエラー
 
 ```bash
-# キャッシュをクリア
-rm -rf .next node_modules
+# キャッシュをクリアして再インストール
+rm -rf .next node_modules package-lock.json
 npm install
 npm run build
 ```
 
-## 次のステップ
+## 🎯 次のステップ
 
-1. アカウントを作成してログイン
-2. 基本的な収支を入力してテスト
-3. Firestore Console でデータが保存されているか確認
+### 1. アプリの動作確認
 
-詳細は[README.md](./README.md)を参照してください。
+- [ ] アカウントを作成
+- [ ] ログイン/ログアウト
+- [ ] Firebase Console でユーザーが作成されたか確認
+
+### 2. Gemini API キーの取得（AI 機能用）
+
+1. [Google AI Studio](https://makersuite.google.com/app/apikey) にアクセス
+2. 「Create API Key」をクリック
+3. `.env.local` の `GEMINI_API_KEY` に設定
+4. 開発サーバーを再起動
+
+### 3. 開発を開始
+
+- Phase 1: 基本的な収支入力フォームの実装
+- Phase 2: 立替処理機能
+- Phase 3 以降: AI 機能、カレンダー連携など
+
+詳細は [README.md](./README.md) と [PROGRESS.md](./PROGRESS.md) を参照してください。
+
+## 📚 関連リンク
+
+- [Firebase Console](https://console.firebase.google.com/project/wallet-2029e)
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [プロジェクト README](./README.md)
+- [進捗状況](./PROGRESS.md)
+
+## ⚠️ 重要な注意事項
+
+- `.env.local` ファイルは**絶対に Git にコミットしない**でください
+- API キーなどの機密情報が含まれています
+- このファイルは `.gitignore` に含まれています
+- 本番環境では環境変数を適切に設定してください
