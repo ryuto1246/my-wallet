@@ -50,8 +50,9 @@ export default function SignupPage() {
     try {
       await signUp(email, password, name);
       router.push("/dashboard");
-    } catch (err: any) {
-      if (err.code === "auth/email-already-in-use") {
+    } catch (err) {
+      const error = err as { code?: string };
+      if (error.code === "auth/email-already-in-use") {
         setError("このメールアドレスは既に使用されています。");
       } else {
         setError("アカウント作成に失敗しました。入力内容を確認してください。");
@@ -69,7 +70,7 @@ export default function SignupPage() {
     try {
       await signInWithGoogle();
       router.push("/dashboard");
-    } catch (err: any) {
+    } catch (err) {
       setError("Googleログインに失敗しました。");
       console.error(err);
     } finally {
@@ -78,20 +79,22 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
+      <Card className="w-full max-w-md shadow-soft-lg border-0 rounded-3xl overflow-hidden">
+        <CardHeader className="space-y-1 pt-8 pb-6">
+          <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Smart Wallet
           </CardTitle>
-          <CardDescription className="text-center">
+          <CardDescription className="text-center text-base text-gray-700">
             新しいアカウントを作成
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">名前</Label>
+              <Label htmlFor="name" className="text-gray-900 font-medium">
+                名前
+              </Label>
               <Input
                 id="name"
                 type="text"
@@ -100,10 +103,13 @@ export default function SignupPage() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 disabled={loading}
+                className="border-gray-300 text-gray-900 placeholder:text-gray-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">メールアドレス</Label>
+              <Label htmlFor="email" className="text-gray-900 font-medium">
+                メールアドレス
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -112,10 +118,13 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                className="border-gray-300 text-gray-900 placeholder:text-gray-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">パスワード</Label>
+              <Label htmlFor="password" className="text-gray-900 font-medium">
+                パスワード
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -124,10 +133,16 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                className="border-gray-300 text-gray-900 placeholder:text-gray-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">パスワード確認</Label>
+              <Label
+                htmlFor="confirmPassword"
+                className="text-gray-900 font-medium"
+              >
+                パスワード確認
+              </Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -136,6 +151,7 @@ export default function SignupPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 disabled={loading}
+                className="border-gray-300 text-gray-900 placeholder:text-gray-500"
               />
             </div>
             {error && (
@@ -143,7 +159,11 @@ export default function SignupPage() {
                 {error}
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/30 h-12"
+              disabled={loading}
+            >
               {loading ? "アカウント作成中..." : "アカウント作成"}
             </Button>
           </form>
@@ -153,14 +173,16 @@ export default function SignupPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500">または</span>
+              <span className="bg-white px-2 text-gray-600 font-medium">
+                または
+              </span>
             </div>
           </div>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full"
+            className="w-full rounded-xl border-2 border-gray-300 h-12 text-gray-900 hover:bg-gray-100 hover:border-gray-400 font-medium"
             onClick={handleGoogleSignIn}
             disabled={loading}
           >
@@ -168,9 +190,12 @@ export default function SignupPage() {
           </Button>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-center text-gray-600">
+          <div className="text-sm text-center text-gray-700">
             既にアカウントをお持ちの方は
-            <Link href="/login" className="ml-1 text-blue-600 hover:underline">
+            <Link
+              href="/login"
+              className="ml-1 text-blue-600 hover:underline font-medium"
+            >
               ログイン
             </Link>
           </div>

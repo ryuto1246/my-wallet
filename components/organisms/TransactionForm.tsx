@@ -13,7 +13,6 @@ import { ja } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -72,7 +71,7 @@ export function TransactionForm({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
       date: new Date(),
-      amount: undefined as any,
+      amount: 0,
       categoryMain: "",
       categorySub: "",
       description: "",

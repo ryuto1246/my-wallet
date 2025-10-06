@@ -68,7 +68,13 @@ export const useTransactions = (filter?: TransactionFilter) => {
         description: data.description,
         paymentMethod: data.paymentMethod,
         isIncome: data.isIncome,
-        advance: data.advance as any,
+        advance: data.advance ? {
+          type: data.advance.type || null,
+          totalAmount: data.advance.totalAmount || 0,
+          advanceAmount: data.advance.advanceAmount || 0,
+          personalAmount: data.advance.personalAmount || 0,
+          isRecovered: data.advance.isRecovered || false,
+        } : undefined,
         calendar: data.calendarEventId ? { eventId: data.calendarEventId, eventName: '', eventType: 'during' as const } : undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -84,7 +90,15 @@ export const useTransactions = (filter?: TransactionFilter) => {
   const update = useCallback(async (id: string, data: Partial<TransactionFormData>) => {
     try {
       await updateTransactionFirestore(id, data);
-      updateTransactionStore(id, { ...data as any, updatedAt: new Date() });
+      updateTransactionStore(id, {
+        date: data.date,
+        amount: data.amount,
+        category: data.category,
+        description: data.description,
+        paymentMethod: data.paymentMethod,
+        isIncome: data.isIncome,
+        updatedAt: new Date()
+      });
     } catch (error) {
       console.error('トランザクション更新エラー:', error);
       throw error;

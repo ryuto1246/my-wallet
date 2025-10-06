@@ -25,8 +25,8 @@ import { Transaction, TransactionFormData, TransactionFilter } from '@/types/tra
 /**
  * Firestoreのタイムスタンプを日付に変換
  */
-const timestampToDate = (timestamp: any): Date => {
-  if (timestamp?.toDate) {
+const timestampToDate = (timestamp: Timestamp | Date | string | number): Date => {
+  if (timestamp && typeof timestamp === 'object' && 'toDate' in timestamp) {
     return timestamp.toDate();
   }
   return new Date(timestamp);
@@ -178,13 +178,33 @@ export const updateTransaction = async (
   try {
     const transactionRef = doc(db, 'transactions', transactionId);
     
-    const updateData: any = {
-      ...data,
+    const updateData: Record<string, unknown> = {
       updatedAt: serverTimestamp(),
     };
-    
+
     if (data.date) {
       updateData.date = Timestamp.fromDate(data.date);
+    }
+    if (data.amount !== undefined) {
+      updateData.amount = data.amount;
+    }
+    if (data.category) {
+      updateData.category = data.category;
+    }
+    if (data.description !== undefined) {
+      updateData.description = data.description;
+    }
+    if (data.paymentMethod !== undefined) {
+      updateData.paymentMethod = data.paymentMethod;
+    }
+    if (data.isIncome !== undefined) {
+      updateData.isIncome = data.isIncome;
+    }
+    if (data.advance !== undefined) {
+      updateData.advance = data.advance;
+    }
+    if (data.calendarEventId !== undefined) {
+      updateData.calendar = { eventId: data.calendarEventId };
     }
     
     await updateDoc(transactionRef, updateData);
