@@ -1,102 +1,124 @@
-import Image from "next/image";
+/**
+ * ランディングページ
+ */
+
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex min-h-screen flex-col">
+      {/* ヘッダー */}
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold">Smart Wallet</h1>
+          <div className="flex gap-4">
+            <Link href="/login">
+              <Button variant="outline">ログイン</Button>
+            </Link>
+            <Link href="/signup">
+              <Button>無料で始める</Button>
+            </Link>
+          </div>
         </div>
+      </header>
+
+      {/* メインコンテンツ */}
+      <main className="flex-1">
+        {/* ヒーローセクション */}
+        <section className="container mx-auto px-4 py-20 text-center">
+          <h2 className="text-5xl font-bold mb-6">AI搭載の次世代家計簿</h2>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Googleカレンダー連携とAIサジェスチョンで、
+            <br />
+            あなたの家計管理を革新します
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link href="/signup">
+              <Button size="lg" className="text-lg px-8">
+                今すぐ始める
+              </Button>
+            </Link>
+            <Link href="#features">
+              <Button size="lg" variant="outline" className="text-lg px-8">
+                機能を見る
+              </Button>
+            </Link>
+          </div>
+        </section>
+
+        {/* 機能セクション */}
+        <section id="features" className="bg-gray-50 py-20">
+          <div className="container mx-auto px-4">
+            <h3 className="text-3xl font-bold text-center mb-12">主な機能</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="text-4xl mb-4">📅</div>
+                <h4 className="text-xl font-bold mb-2">カレンダー連携</h4>
+                <p className="text-gray-600">
+                  Googleカレンダーと連携して、予定と支出を紐付けて可視化
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="text-4xl mb-4">🤖</div>
+                <h4 className="text-xl font-bold mb-2">AIサジェスチョン</h4>
+                <p className="text-gray-600">
+                  Gemini AIが項目名やカテゴリーを賢く提案
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="text-4xl mb-4">💳</div>
+                <h4 className="text-xl font-bold mb-2">画像認識入力</h4>
+                <p className="text-gray-600">
+                  カードアプリのスクショから自動入力
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="text-4xl mb-4">🔄</div>
+                <h4 className="text-xl font-bold mb-2">柔軟な立替処理</h4>
+                <p className="text-gray-600">
+                  部分立替や複雑な立替シナリオに完全対応
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="text-4xl mb-4">📊</div>
+                <h4 className="text-xl font-bold mb-2">詳細な分析</h4>
+                <p className="text-gray-600">
+                  カテゴリー別、予定別の支出レポート
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <div className="text-4xl mb-4">🎓</div>
+                <h4 className="text-xl font-bold mb-2">学習機能</h4>
+                <p className="text-gray-600">
+                  あなたの修正から学習して精度が向上
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTAセクション */}
+        <section className="py-20">
+          <div className="container mx-auto px-4 text-center">
+            <h3 className="text-3xl font-bold mb-6">今すぐ始めましょう</h3>
+            <p className="text-xl text-gray-600 mb-8">
+              無料でアカウントを作成して、スマートな家計管理を体験
+            </p>
+            <Link href="/signup">
+              <Button size="lg" className="text-lg px-8">
+                無料で始める
+              </Button>
+            </Link>
+          </div>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* フッター */}
+      <footer className="border-t py-8">
+        <div className="container mx-auto px-4 text-center text-gray-600">
+          <p>&copy; 2025 Smart Wallet. All rights reserved.</p>
+        </div>
       </footer>
     </div>
   );

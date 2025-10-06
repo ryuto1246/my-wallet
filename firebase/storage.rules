@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ユーザーが認証されているかチェック
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // ファイルサイズが10MB以下かチェック
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // 画像ファイルかチェック
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // トランザクション画像（スクリーンショット）
+    match /transactions/{userId}/{transactionId}/{fileName} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() 
+                   && request.auth.uid == userId 
+                   && isValidSize() 
+                   && isImage();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ユーザープロフィール画像
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() 
+                   && request.auth.uid == userId 
+                   && isValidSize() 
+                   && isImage();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // デフォルトで全て拒否
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
