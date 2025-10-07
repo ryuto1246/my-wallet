@@ -1,9 +1,10 @@
 /**
  * トランザクションリスト（Organism）
  * トランザクション一覧を表示するカード
+ * Liquid Glassスタイルを適用
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GlassCard } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { TransactionListItem } from "@/components/molecules";
@@ -37,36 +38,44 @@ export function TransactionList({
   onViewAllClick,
 }: TransactionListProps) {
   return (
-    <Card className="border-0 shadow-soft rounded-3xl">
-      <CardHeader className="flex flex-row items-center justify-between pb-4">
-        <CardTitle className="text-2xl">{title}</CardTitle>
-        {!showAll && transactions.length > 0 && onViewAllClick && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-full"
-            onClick={onViewAllClick}
-          >
-            すべて表示 →
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent>
+    <GlassCard variant="soft" intensity="strong" className="overflow-hidden">
+      <div className="p-8">
+        <div className="flex flex-row items-center justify-between pb-6 mb-2">
+          <h2 className="text-3xl font-bold text-gray-900">{title}</h2>
+          {!showAll && transactions.length > 0 && onViewAllClick && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-xl hover:bg-white/50 transition-all font-semibold"
+              onClick={onViewAllClick}
+            >
+              すべて表示 →
+            </Button>
+          )}
+        </div>
+
         {loading ? (
           <div className="text-center py-12 text-gray-700">読み込み中...</div>
         ) : transactions.length === 0 ? (
-          <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl">
-            <p className="text-gray-700 mb-6 text-lg">{emptyMessage}</p>
+          <div
+            className="text-center py-16 bg-gradient-to-br from-white/40 to-white/20 
+                          backdrop-blur-sm rounded-2xl border border-white/30"
+          >
+            <p className="text-gray-800 mb-6 text-lg font-medium">
+              {emptyMessage}
+            </p>
             <Button
               onClick={onAddClick}
-              className="rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/30"
+              className="rounded-2xl bg-gradient-to-r from-blue-500/90 to-purple-500/90 hover:from-blue-600/90 hover:to-purple-600/90 
+                         backdrop-blur-xl border border-white/30 shadow-glass-lg 
+                         transition-all duration-300 hover:scale-105 text-white font-semibold"
             >
               <Plus className="mr-2 h-4 w-4" />
               {emptyButtonText}
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {transactions.map((transaction) => (
               <TransactionListItem
                 key={transaction.id}
@@ -85,7 +94,7 @@ export function TransactionList({
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   );
 }

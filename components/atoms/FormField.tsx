@@ -28,8 +28,8 @@ export function FormField({
   disabled = false,
 }: FormFieldProps) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="text-gray-900 font-medium">
+    <div className="space-y-2.5">
+      <Label htmlFor={id} className="text-gray-800 font-semibold text-sm">
         {label}
       </Label>
       <Input
@@ -40,7 +40,6 @@ export function FormField({
         onChange={(e) => onChange(e.target.value)}
         required={required}
         disabled={disabled}
-        className="border-gray-300 text-gray-900 placeholder:text-gray-500"
       />
     </div>
   );

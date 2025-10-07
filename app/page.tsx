@@ -62,7 +62,7 @@ export default function Home() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg px-10 py-7 rounded-full border-2 border-gray-300 bg-white text-gray-900 hover:text-gray-900 hover:bg-gray-100 hover:border-gray-400 transition-all"
+                  className="text-lg px-10 py-7 rounded-full border-2 border-gray-700 bg-white text-gray-900 hover:text-gray-900 hover:bg-gray-50 hover:border-gray-900 transition-all font-semibold shadow-md hover:shadow-lg"
                 >
                   機能を見る
                 </Button>
@@ -123,7 +123,7 @@ export default function Home() {
               ].map((feature, i) => (
                 <div
                   key={i}
-                  className="group p-8 rounded-3xl bg-white shadow-soft hover:shadow-soft-lg transition-all duration-300 hover:-translate-y-1"
+                  className="group p-8 rounded-3xl bg-white/98 backdrop-blur-md border-2 border-white/60 shadow-soft hover:shadow-soft-lg hover:bg-white hover:border-white/80 transition-all duration-300 hover:-translate-y-1"
                 >
                   <div
                     className={`text-5xl mb-6 w-16 h-16 flex items-center justify-center rounded-2xl bg-gradient-to-br ${feature.gradient} shadow-lg`}

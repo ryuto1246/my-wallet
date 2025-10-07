@@ -1,10 +1,11 @@
 /**
  * ページヘッダー（Organism）
  * ページのタイトルとアクションボタンを表示
+ * Liquid Glassスタイルを適用
  */
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 
 interface PageHeaderProps {
   title: string;
@@ -22,12 +23,17 @@ export function PageHeader({
   onAddClick,
 }: PageHeaderProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-700 to-purple-700 bg-clip-text text-transparent">
-          {title}
-        </h1>
-        <p className="text-gray-700 mt-2 text-lg">
+    <div className="flex items-center justify-between mb-4">
+      <div className="space-y-3">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 backdrop-blur-md border-2 border-white/40 shadow-lg">
+            <Sparkles className="h-7 w-7 text-blue-700" />
+          </div>
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-700 via-purple-700 to-pink-700 bg-clip-text text-transparent">
+            {title}
+          </h1>
+        </div>
+        <p className="text-gray-800 text-xl font-semibold ml-16">
           {userName ? `ようこそ、${userName}さん` : description}
         </p>
       </div>
@@ -35,9 +41,11 @@ export function PageHeader({
         <Button
           onClick={onAddClick}
           size="lg"
-          className="rounded-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/30 px-8"
+          className="rounded-2xl bg-gradient-to-r from-blue-500/90 to-purple-500/90 hover:from-blue-600/90 hover:to-purple-600/90 
+                     backdrop-blur-xl border border-white/30 shadow-glass-lg 
+                     transition-all duration-300 hover:scale-105 hover:shadow-glass-lg px-10 py-6 text-white font-semibold"
         >
-          <Plus className="mr-2 h-5 w-5" />
+          <Plus className="mr-2 h-6 w-6" />
           新規追加
         </Button>
       )}
