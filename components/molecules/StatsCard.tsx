@@ -63,27 +63,31 @@ export function StatsCard({
       intensity="strong"
       className="overflow-hidden group"
     >
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
           <div
-            className={`p-4 rounded-2xl ${colors.iconBg} shadow-xl transition-transform duration-300 group-hover:scale-110`}
+            className={`p-2.5 sm:p-3 md:p-4 rounded-xl md:rounded-2xl ${colors.iconBg} shadow-xl transition-transform duration-300 group-hover:scale-110`}
           >
-            <Icon className={`h-6 w-6 ${colors.iconColor}`} />
+            <Icon
+              className={`h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6 ${colors.iconColor}`}
+            />
           </div>
         </div>
 
         <h3
-          className={`text-sm font-semibold ${colors.textColor} mb-3 tracking-wide uppercase`}
+          className={`text-xs sm:text-sm font-semibold ${colors.textColor} mb-2 md:mb-3 tracking-wide uppercase`}
         >
           {title}
         </h3>
 
-        <div className={`text-4xl font-bold ${colors.valueColor} mb-2`}>
+        <div
+          className={`text-2xl sm:text-3xl md:text-4xl font-bold ${colors.valueColor} mb-1 md:mb-2`}
+        >
           {prefix}¥{value.toLocaleString()}
         </div>
 
         {loading && (
-          <p className={`text-sm ${colors.loadingText} font-medium`}>
+          <p className={`text-xs sm:text-sm ${colors.loadingText} font-medium`}>
             読み込み中...
           </p>
         )}

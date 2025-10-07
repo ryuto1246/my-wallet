@@ -37,7 +37,7 @@ export function TransactionListItem({
 }: TransactionListItemProps) {
   return (
     <div
-      className="flex items-center justify-between p-6 md:p-7 rounded-3xl 
+      className="flex items-center justify-between p-4 md:p-4 rounded-2xl 
                     bg-white/95 backdrop-blur-xl 
                     border-2 border-white/60
                     hover:bg-white
@@ -45,39 +45,37 @@ export function TransactionListItem({
                     transition-all duration-300 hover:shadow-glass-lg hover:scale-[1.01] group"
     >
       <div className="flex-1">
-        <div className="flex items-center gap-3 mb-3">
-          <h3 className="font-bold text-xl text-gray-900 group-hover:text-blue-700 transition-colors">
+        <div className="flex items-center gap-2 mb-1.5">
+          <h3 className="font-bold text-base text-gray-900 group-hover:text-blue-700 transition-colors">
             {description}
           </h3>
           {showBadge && (
             <Badge
               variant={isIncome ? "default" : "secondary"}
-              className="rounded-full px-4 py-1 backdrop-blur-sm font-semibold"
+              className="rounded-full px-2.5 py-0.5 text-xs backdrop-blur-sm font-semibold"
             >
               {isIncome ? "収入" : "支出"}
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-3 text-sm text-gray-800 flex-wrap font-medium">
-          <span className="px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md border-2 border-white/50">
+        <div className="flex items-center gap-2 text-xs text-gray-700 flex-wrap font-medium">
+          <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
             {format(date, dateFormat, { locale: ja })}
           </span>
-          <span className="px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md border-2 border-white/50">
+          <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
             {categoryMain} / {categorySub}
           </span>
           {showPaymentMethod && paymentMethod && (
-            <span className="px-4 py-1.5 rounded-full bg-white/70 backdrop-blur-md border-2 border-white/50">
+            <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
               {getPaymentMethodLabel(paymentMethod)}
             </span>
           )}
         </div>
       </div>
-      <div className="text-right ml-6">
+      <div className="text-right ml-4">
         <div
-          className={`text-3xl font-bold px-6 py-3 rounded-2xl backdrop-blur-md transition-all shadow-lg ${
-            isIncome
-              ? "text-emerald-800 bg-emerald-100/80 border-2 border-emerald-300/70"
-              : "text-gray-900 bg-gray-200/80 border-2 border-gray-300/70"
+          className={`text-xl font-bold transition-all ${
+            isIncome ? "text-emerald-700" : "text-gray-900"
           }`}
         >
           {isIncome ? "+" : "-"}¥{amount.toLocaleString()}

@@ -22,7 +22,7 @@ export function MonthlyStatsCards({
   loading = false,
 }: MonthlyStatsCardsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5 mb-6 sm:mb-8">
       <StatsCard
         title="今月の収入"
         value={stats.income}

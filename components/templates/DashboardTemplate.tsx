@@ -12,7 +12,7 @@ interface DashboardTemplateProps {
 
 export function DashboardTemplate({ children }: DashboardTemplateProps) {
   return (
-    <div className="space-y-12 relative">
+    <div className="space-y-6 sm:space-y-8 relative">
       {/* デコレーション用のグラデーションブロブ */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" />
