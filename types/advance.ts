@@ -3,8 +3,8 @@
  */
 
 export const AdvanceType = {
-  FRIEND: 'friend',  // 友人立替（後で回収する）
-  PARENT: 'parent',  // 親負担（返済不要、支出にカウントしない）
+  FRIEND: 'friend',  // 友人立替（友人から後で回収する）
+  PARENT: 'parent',  // 親負担（親から後で回収する）
 } as const;
 
 export type AdvanceTypeValue = typeof AdvanceType[keyof typeof AdvanceType];

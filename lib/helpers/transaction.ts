@@ -102,7 +102,7 @@ export function filterTransactionsByType(
 export function transformFormDataToTransaction(
   data: TransactionFormValues
 ): Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt"> {
-  return {
+  const baseTransaction = {
     date: data.date,
     amount: data.amount,
     category: {
@@ -120,6 +120,29 @@ export function transformFormDataToTransaction(
       | "other",
     isIncome: data.isIncome,
   };
+
+  // 立替情報がある場合は追加
+  if (data.hasAdvance && data.advance) {
+    const advanceInfo: any = {
+      type: data.advance.type,
+      totalAmount: data.advance.totalAmount,
+      advanceAmount: data.advance.advanceAmount,
+      personalAmount: data.advance.personalAmount,
+      isRecovered: false, // 新規作成時は未回収
+    };
+
+    // memoがある場合のみ追加（undefinedを避ける）
+    if (data.advance.memo) {
+      advanceInfo.memo = data.advance.memo;
+    }
+
+    return {
+      ...baseTransaction,
+      advance: advanceInfo,
+    };
+  }
+
+  return baseTransaction;
 }
 
 /**

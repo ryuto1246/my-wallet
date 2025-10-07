@@ -14,6 +14,7 @@ interface StatsCardProps {
   colorScheme: "green" | "red" | "blue" | "orange";
   loading?: boolean;
   prefix?: string;
+  details?: { label: string; value: number }[];
 }
 
 const colorSchemes = {
@@ -54,6 +55,7 @@ export function StatsCard({
   colorScheme,
   loading = false,
   prefix = "",
+  details,
 }: StatsCardProps) {
   const colors = colorSchemes[colorScheme];
 
@@ -85,6 +87,24 @@ export function StatsCard({
         >
           {prefix}¥{value.toLocaleString()}
         </div>
+
+        {details && details.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-200/50 space-y-1">
+            {details.map((detail, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center text-xs sm:text-sm"
+              >
+                <span className="text-gray-600 font-medium">
+                  {detail.label}
+                </span>
+                <span className={`font-semibold ${colors.textColor}`}>
+                  ¥{detail.value.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loading && (
           <p className={`text-xs sm:text-sm ${colors.loadingText} font-medium`}>

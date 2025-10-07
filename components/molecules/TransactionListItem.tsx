@@ -8,6 +8,8 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { getPaymentMethodLabel } from "@/constants/paymentMethods";
+import { AdvanceInfo } from "@/types/advance";
+import { PaymentMethodValue } from "@/types/transaction";
 
 interface TransactionListItemProps {
   id: string;
@@ -17,7 +19,8 @@ interface TransactionListItemProps {
   isIncome: boolean;
   categoryMain: string;
   categorySub: string;
-  paymentMethod?: string;
+  paymentMethod?: PaymentMethodValue;
+  advance?: AdvanceInfo;
   showBadge?: boolean;
   showPaymentMethod?: boolean;
   dateFormat?: string;
@@ -31,10 +34,13 @@ export function TransactionListItem({
   categoryMain,
   categorySub,
   paymentMethod,
+  advance,
   showBadge = false,
   showPaymentMethod = false,
   dateFormat = "M/d(E)",
 }: TransactionListItemProps) {
+  const isAdvanceRecovery = isIncome && categorySub === "立替金回収";
+
   return (
     <div
       className="flex items-center justify-between p-4 md:p-4 rounded-2xl 
@@ -57,6 +63,26 @@ export function TransactionListItem({
               {isIncome ? "収入" : "支出"}
             </Badge>
           )}
+          {isAdvanceRecovery && (
+            <Badge
+              variant="outline"
+              className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-blue-600 border-blue-600 bg-blue-50"
+            >
+              立替金回収
+            </Badge>
+          )}
+          {advance && (
+            <Badge
+              variant="outline"
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                advance.type === "friend"
+                  ? "text-orange-600 border-orange-600 bg-orange-50"
+                  : "text-purple-600 border-purple-600 bg-purple-50"
+              }`}
+            >
+              {advance.type === "friend" ? "友人立替" : "親負担"}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-700 flex-wrap font-medium">
           <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
@@ -70,16 +96,29 @@ export function TransactionListItem({
               {getPaymentMethodLabel(paymentMethod)}
             </span>
           )}
+          {advance && (
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 backdrop-blur-md border border-blue-200 text-blue-700">
+              立替: ¥{advance.advanceAmount.toLocaleString()} / 自己: ¥
+              {advance.personalAmount.toLocaleString()}
+            </span>
+          )}
         </div>
       </div>
       <div className="text-right ml-4">
         <div
           className={`text-xl font-bold transition-all ${
-            isIncome ? "text-emerald-700" : "text-gray-900"
+            isAdvanceRecovery
+              ? "text-blue-600"
+              : isIncome
+              ? "text-emerald-700"
+              : "text-gray-900"
           }`}
         >
           {isIncome ? "+" : "-"}¥{amount.toLocaleString()}
         </div>
+        {isAdvanceRecovery && (
+          <div className="text-xs text-blue-500 mt-0.5">回収</div>
+        )}
       </div>
     </div>
   );

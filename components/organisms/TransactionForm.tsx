@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Info } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
@@ -39,6 +39,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 
 import {
   transactionFormSchema,
@@ -78,12 +79,18 @@ export function TransactionForm({
       paymentMethod: "",
       isIncome: false,
       memo: "",
+      hasAdvance: false,
+      advance: undefined,
       ...defaultValues,
     },
   });
 
   const isIncome = form.watch("isIncome");
   const categoryMain = form.watch("categoryMain");
+  const hasAdvance = form.watch("hasAdvance");
+  const amount = form.watch("amount");
+  const advanceAmount = form.watch("advance.advanceAmount");
+  const personalAmount = form.watch("advance.personalAmount");
 
   // メインカテゴリーが変更されたらサブカテゴリーをリセット
   useEffect(() => {
@@ -92,6 +99,41 @@ export function TransactionForm({
       setSelectedMainCategory(categoryMain);
     }
   }, [categoryMain, selectedMainCategory, form]);
+
+  // 立替の自動計算：totalAmount = amount, advanceAmount + personalAmount の調整
+  useEffect(() => {
+    if (hasAdvance && amount > 0) {
+      const currentAdvanceAmount = advanceAmount || 0;
+      const currentPersonalAmount = personalAmount || 0;
+
+      // 両方とも0の場合、totalAmountをamountに設定
+      if (currentAdvanceAmount === 0 && currentPersonalAmount === 0) {
+        form.setValue("advance.totalAmount", amount);
+      } else {
+        // 片方が変更された場合、もう片方を自動計算
+        const total = currentAdvanceAmount + currentPersonalAmount;
+        if (total !== amount) {
+          form.setValue("advance.totalAmount", amount);
+        }
+      }
+    }
+  }, [amount, advanceAmount, personalAmount, hasAdvance, form]);
+
+  // 立替フラグがOFFになったら立替情報をクリア
+  useEffect(() => {
+    if (!hasAdvance) {
+      form.setValue("advance", undefined);
+    } else if (hasAdvance && !form.getValues("advance")) {
+      // 立替フラグがONになったら初期値を設定
+      form.setValue("advance", {
+        type: null,
+        totalAmount: amount || 0,
+        advanceAmount: 0,
+        personalAmount: amount || 0,
+        memo: "",
+      });
+    }
+  }, [hasAdvance, form, amount]);
 
   const handleSubmit = async (data: TransactionFormValues) => {
     setLoading(true);
@@ -351,6 +393,207 @@ export function TransactionForm({
                 </FormItem>
               )}
             />
+
+            {/* 立替設定 */}
+            {!isIncome && (
+              <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+                <FormField
+                  control={form.control}
+                  name="hasAdvance"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base font-semibold">
+                          立替設定
+                        </FormLabel>
+                        <FormDescription>
+                          他の人の分を立て替えた場合にオンにしてください
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {hasAdvance && (
+                  <>
+                    {/* 立替タイプ */}
+                    <FormField
+                      control={form.control}
+                      name="advance.type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>立替タイプ</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="立替タイプを選択" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="friend">
+                                友人立替（友人から回収）
+                              </SelectItem>
+                              <SelectItem value="parent">
+                                親負担（親から回収）
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            友人立替：友人から回収 / 親負担：親から回収
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* 立替金額 */}
+                    <FormField
+                      control={form.control}
+                      name="advance.advanceAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>立替金額</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                ¥
+                              </span>
+                              <Input
+                                type="number"
+                                placeholder="0"
+                                className="pl-8"
+                                {...field}
+                                onChange={(e) => {
+                                  const value = Number(e.target.value) || 0;
+                                  field.onChange(value);
+                                  // 自己負担額を自動計算
+                                  const total = amount || 0;
+                                  form.setValue(
+                                    "advance.personalAmount",
+                                    Math.max(0, total - value)
+                                  );
+                                }}
+                                value={field.value || ""}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormDescription>
+                            他の人のために立て替えた金額
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* 自己負担額 */}
+                    <FormField
+                      control={form.control}
+                      name="advance.personalAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>自己負担額</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                ¥
+                              </span>
+                              <Input
+                                type="number"
+                                placeholder="0"
+                                className="pl-8"
+                                {...field}
+                                onChange={(e) => {
+                                  const value = Number(e.target.value) || 0;
+                                  field.onChange(value);
+                                  // 立替金額を自動計算
+                                  const total = amount || 0;
+                                  form.setValue(
+                                    "advance.advanceAmount",
+                                    Math.max(0, total - value)
+                                  );
+                                }}
+                                value={field.value || ""}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormDescription>自分の負担分の金額</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* 計算結果の表示 */}
+                    {amount > 0 &&
+                      (advanceAmount || 0) + (personalAmount || 0) > 0 && (
+                        <div className="rounded-md bg-white p-3 text-sm">
+                          <div className="flex items-center gap-2 text-blue-600 mb-2">
+                            <Info className="h-4 w-4" />
+                            <span className="font-medium">金額の内訳</span>
+                          </div>
+                          <div className="space-y-1 text-gray-600">
+                            <div className="flex justify-between">
+                              <span>支払総額：</span>
+                              <span className="font-medium">
+                                ¥{amount.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>立替金額：</span>
+                              <span className="font-medium">
+                                ¥{(advanceAmount || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>自己負担：</span>
+                              <span className="font-medium">
+                                ¥{(personalAmount || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            {Math.abs(
+                              amount -
+                                ((advanceAmount || 0) + (personalAmount || 0))
+                            ) > 0.01 && (
+                              <div className="mt-2 text-red-500 text-xs">
+                                ⚠️ 合計が一致しません
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* 立替メモ */}
+                    <FormField
+                      control={form.control}
+                      name="advance.memo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>立替メモ（任意）</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="例: Aさん・Bさん分"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            誰の分を立て替えたかなど
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+              </div>
+            )}
 
             {/* 送信ボタン */}
             <div className="flex gap-4">
