@@ -28,6 +28,16 @@ service firebase.storage {
       allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
+    // トランザクション一時画像（tempフォルダ）
+    match /transactions/{userId}/temp/{fileName} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() 
+                   && request.auth.uid == userId 
+                   && isValidSize() 
+                   && isImage();
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
     // ユーザープロフィール画像
     match /users/{userId}/profile/{fileName} {
       allow read: if isAuthenticated();

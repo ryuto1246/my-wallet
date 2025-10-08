@@ -260,6 +260,7 @@ export const predictFromHistory = async (
   category: Category;
   description: string;
   confidence: number;
+  isIncome: boolean;
 } | null> => {
   const patterns = await getPastPatterns(userId, originalText);
   
@@ -308,10 +309,14 @@ export const predictFromHistory = async (
   const scoreBonus = (best.score / maxScore) * 0.2; // 最大+0.2
   const confidence = Math.min(0.95, baseConfidence + scoreBonus);
   
+  // カテゴリーから収入/支出を判定
+  const isIncome = best.pattern.userCorrection.category.main === '収入';
+  
   return {
     category: best.pattern.userCorrection.category,
     description: best.pattern.userCorrection.description,
     confidence,
+    isIncome,
   };
 };
 

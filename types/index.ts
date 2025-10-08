@@ -8,4 +8,5 @@ export * from './calendar';
 export * from './transaction';
 export * from './user';
 export * from './ai-learning';
+export * from './image-recognition';
 

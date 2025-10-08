@@ -56,6 +56,18 @@ export interface TransactionFormData {
   calendarEventId?: string;
 }
 
+export interface TransactionInput {
+  date: Date;
+  amount: number;
+  category: Category;
+  description: string;
+  paymentMethod: PaymentMethodValue | string;
+  isIncome: boolean;
+  advance?: Partial<AdvanceInfo>;
+  imageUrl?: string;
+  memo?: string;
+}
+
 export interface TransactionFilter {
   startDate?: Date;
   endDate?: Date;

@@ -74,17 +74,21 @@ Google カレンダー連携と AI サジェスチョンを活用した、次世
 
 ### Phase 4: スクショ認識
 
-- 🔲 画像アップロード機能
-- 🔲 Gemini Vision による画像解析
-- 🔲 対応決済サービス
+- ✅ 画像アップロード機能
+- ✅ Gemini Vision による画像解析
+- ✅ **取引リストから一括認識**（1 枚の画像から複数の取引を認識）
+- ✅ 対応決済サービス
   - 三井住友 OLIVE
   - ソニー銀行
   - d 払い
   - d カード
   - PayPay
   - 現金（手入力）
-- 🔲 認識結果の確認・修正画面
-- 🔲 複数画像の一括処理
+- ✅ 認識結果の確認・修正画面
+- ✅ 複数取引の一括登録
+- ✅ 重複検出機能（二重登録防止）
+- ✅ **テンプレート準拠の項目名生成**（「??（オオゼキ）で食材購入」など）
+- ✅ 情報不足時の「??」プレースホルダー対応
 
 ### Phase 5: 学習・自動修正
 
@@ -538,7 +542,8 @@ npm run test:e2e
 - [ARCHITECTURE.md](ARCHITECTURE.md) - アーキテクチャ設計書
 - [PROGRESS.md](PROGRESS.md) - 開発進捗状況
 - [ACCESSIBILITY.md](ACCESSIBILITY.md) - アクセシビリティガイド
-- [docs/CATEGORIES.md](docs/CATEGORIES.md) - カテゴリー構造の詳細ガイド ⭐️ NEW
+- [docs/CATEGORIES.md](docs/CATEGORIES.md) - カテゴリー構造の詳細ガイド
+- [docs/IMAGE_RECOGNITION.md](docs/IMAGE_RECOGNITION.md) - 画像認識機能ガイド ⭐️ NEW
 
 ## コントリビューション
 

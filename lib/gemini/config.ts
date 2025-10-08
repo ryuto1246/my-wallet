@@ -49,3 +49,4 @@ export const isGeminiAvailable = (): boolean => {
   return !!getApiKey();
 };
 
+

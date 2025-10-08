@@ -3,10 +3,11 @@
  */
 
 import { Category } from './category';
+import { PaymentMethodValue } from './transaction';
 
 export interface AILearningContext {
   amount: number;
-  paymentMethod: string;
+  paymentMethod: PaymentMethodValue;
   timeOfDay: string;        // 'morning' | 'afternoon' | 'evening' | 'night'
   dayOfWeek: string;        // 'monday' | 'tuesday' | ...
   storeName?: string;       // 店舗名（もしあれば）

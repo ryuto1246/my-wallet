@@ -31,10 +31,12 @@ import {
   TransactionFormValues,
 } from "@/lib/validations/transaction";
 import { PAYMENT_METHODS } from "@/constants/paymentMethods";
-import { useAISuggestion } from "@/hooks";
+import { useAISuggestion, useImageRecognition } from "@/hooks";
 import { SuggestionCarousel } from "@/components/molecules";
 import { saveUserCorrection } from "@/lib/firebase/ai-learning";
 import { useAuth } from "@/hooks";
+import { ImageUploadZone, RecognitionResultCard } from "@/components/organisms";
+import type { ImageRecognitionResult } from "@/types/image-recognition";
 
 interface TransactionFormNewProps {
   open: boolean;
@@ -42,6 +44,8 @@ interface TransactionFormNewProps {
   onSubmit: (data: TransactionFormValues) => Promise<void>;
   defaultValues?: Partial<TransactionFormValues>;
   mode?: "create" | "edit";
+  enableImageInput?: boolean;
+  onImageInputToggle?: (enabled: boolean) => void;
 }
 
 const getTimeOfDay = (): string => {
@@ -72,11 +76,21 @@ export function TransactionForm({
   onSubmit,
   defaultValues,
   mode = "create",
+  enableImageInput = false,
+  onImageInputToggle,
 }: TransactionFormNewProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [isAISuggestionApplied, setIsAISuggestionApplied] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
+
+  // enableImageInputが変更されたら画像アップロードを表示
+  useEffect(() => {
+    if (enableImageInput) {
+      setShowImageUpload(true);
+    }
+  }, [enableImageInput]);
 
   const {
     suggestions,
@@ -87,6 +101,18 @@ export function TransactionForm({
     clearSuggestion,
     isAvailable: aiAvailable,
   } = useAISuggestion();
+
+  const {
+    results: recognitionResults,
+    isRecognizing,
+    error: recognitionError,
+    recognizeImages,
+    clearResults,
+    removeResult,
+  } = useImageRecognition({
+    checkDuplicates: true,
+    duplicateThreshold: 0.8,
+  });
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema) as never,
@@ -133,6 +159,62 @@ export function TransactionForm({
     getMultipleSuggestions,
     clearSuggestion,
   ]);
+
+  // 画像認識結果を適用
+  const handleApplyRecognition = (result: ImageRecognitionResult) => {
+    const { transaction } = result;
+
+    // 金額
+    if (transaction.amount !== null) {
+      form.setValue("amount", transaction.amount, { shouldValidate: true });
+    }
+
+    // 日付
+    if (transaction.date) {
+      form.setValue("date", transaction.date, { shouldValidate: true });
+    }
+
+    // 店舗名・項目名
+    if (transaction.merchantName) {
+      setKeyword(transaction.merchantName);
+      form.setValue("description", transaction.merchantName, {
+        shouldValidate: true,
+      });
+    }
+
+    // カテゴリー（推測があれば）
+    if (transaction.suggestedCategory) {
+      form.setValue("categoryMain", transaction.suggestedCategory.main, {
+        shouldValidate: true,
+      });
+      form.setValue("categorySub", transaction.suggestedCategory.sub, {
+        shouldValidate: true,
+      });
+    }
+
+    // 決済方法（サービスから推測）
+    const paymentMethodMap: Record<string, string> = {
+      olive: "三井住友 OLIVE",
+      sony: "ソニー銀行",
+      dpayment: "d払い",
+      dcard: "dカード",
+      paypay: "PayPay",
+      cash: "現金",
+    };
+
+    const mappedPaymentMethod = paymentMethodMap[transaction.paymentService];
+    if (mappedPaymentMethod) {
+      form.setValue("paymentMethod", mappedPaymentMethod, {
+        shouldValidate: true,
+      });
+    }
+
+    // 画像アップロードエリアを閉じる
+    setShowImageUpload(false);
+    if (onImageInputToggle) {
+      onImageInputToggle(false);
+    }
+  };
 
   const handleSuggestionSelect = (suggestion: (typeof suggestions)[0]) => {
     console.log("🎯 サジェスト選択:", suggestion);
@@ -227,6 +309,11 @@ export function TransactionForm({
       setKeyword("");
       clearSuggestion();
       setIsAISuggestionApplied(false);
+      clearResults();
+      setShowImageUpload(false);
+      if (onImageInputToggle) {
+        onImageInputToggle(false);
+      }
       onOpenChange(false);
     } catch (error) {
       console.error("フォーム送信エラー:", error);
@@ -247,6 +334,41 @@ export function TransactionForm({
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-6"
           >
+            {/* 画像アップロードエリア */}
+            {showImageUpload && (
+              <div className="space-y-4 p-6 border rounded-lg bg-muted/30">
+                <h3 className="text-sm font-medium">
+                  決済アプリのスクリーンショットから自動入力
+                </h3>
+                <ImageUploadZone
+                  onUpload={(files) => recognizeImages(files)}
+                  maxFiles={3}
+                  multiple={true}
+                  isRecognizing={isRecognizing}
+                />
+
+                {recognitionError && (
+                  <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
+                    {recognitionError}
+                  </div>
+                )}
+
+                {/* 認識結果の表示 */}
+                {recognitionResults.length > 0 && (
+                  <div className="space-y-3">
+                    {recognitionResults.map((result, index) => (
+                      <RecognitionResultCard
+                        key={index}
+                        result={result}
+                        onApply={handleApplyRecognition}
+                        onIgnore={() => removeResult(index)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 上部: 金額とキーワード入力欄 - 象徴的デザイン */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
               {/* 装飾的な背景要素 */}

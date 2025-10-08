@@ -5,13 +5,15 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Image as ImageIcon } from "lucide-react";
 
 interface PageHeaderProps {
   title: string;
   userName?: string;
   showAddButton?: boolean;
   onAddClick?: () => void;
+  showImageButton?: boolean;
+  onImageClick?: () => void;
 }
 
 export function PageHeader({
@@ -19,6 +21,8 @@ export function PageHeader({
   userName,
   showAddButton = false,
   onAddClick,
+  showImageButton = false,
+  onImageClick,
 }: PageHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
@@ -29,23 +33,42 @@ export function PageHeader({
             ようこそ、{userName}さん
           </p>
         )}
-        
+
         {/* ページタイトルを適切なサイズで表示 */}
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
           {title}
         </h1>
       </div>
-      {showAddButton && onAddClick && (
-        <Button
-          onClick={onAddClick}
-          size="default"
-          className="hidden sm:flex rounded-xl bg-gradient-to-r from-blue-500/90 to-purple-500/90 hover:from-blue-600/90 hover:to-purple-600/90 
-                     backdrop-blur-xl border border-white/30 shadow-glass 
-                     transition-all duration-300 hover:scale-105 text-white font-semibold"
-        >
-          <Plus className="mr-2 h-5 w-5" />
-          新規追加
-        </Button>
+
+      {/* ボタンエリア */}
+      {(showAddButton || showImageButton) && (
+        <div className="flex gap-2">
+          {showImageButton && onImageClick && (
+            <Button
+              onClick={onImageClick}
+              size="default"
+              variant="outline"
+              className="hidden sm:flex rounded-xl border-2 border-purple-200/80 bg-white/60
+                         backdrop-blur-xl hover:bg-purple-50/80 hover:border-purple-300/80
+                         transition-all duration-300 hover:scale-105 text-purple-700 font-semibold"
+            >
+              <ImageIcon className="mr-2 h-5 w-5" />
+              画像から入力
+            </Button>
+          )}
+          {showAddButton && onAddClick && (
+            <Button
+              onClick={onAddClick}
+              size="default"
+              className="hidden sm:flex rounded-xl bg-gradient-to-r from-blue-500/90 to-purple-500/90 hover:from-blue-600/90 hover:to-purple-600/90 
+                         backdrop-blur-xl border border-white/30 shadow-glass 
+                         transition-all duration-300 hover:scale-105 text-white font-semibold"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              新規追加
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

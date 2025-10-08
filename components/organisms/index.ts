@@ -8,4 +8,7 @@ export { TransactionList } from "./TransactionList";
 export { PageHeader } from "./PageHeader";
 export { TransactionForm } from "./TransactionFormNew";
 export { TransactionForm as TransactionFormOld } from "./TransactionForm";
+export { ImageUploadZone } from "./ImageUploadZone";
+export { RecognitionResultCard } from "./RecognitionResultCard";
+export { BatchImageRecognitionDialog } from "./BatchImageRecognitionDialog";
 

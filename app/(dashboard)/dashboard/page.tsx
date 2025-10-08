@@ -13,6 +13,7 @@ import {
   MonthlyStatsCards,
   TransactionList,
   TransactionForm,
+  BatchImageRecognitionDialog,
 } from "@/components/organisms";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import {
@@ -21,6 +22,7 @@ import {
   transformFormDataToTransaction,
 } from "@/lib/helpers";
 import { calculateActualExpense } from "@/lib/helpers/advance";
+import type { TransactionInput } from "@/types/transaction";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -28,6 +30,7 @@ export default function DashboardPage() {
   const { transactions, loading, createTransaction } = useTransactions();
   const { balance } = useAdvance();
   const [formOpen, setFormOpen] = useState(false);
+  const [batchImageDialogOpen, setBatchImageDialogOpen] = useState(false);
 
   // 今月の収支を計算（全体と立替除外の両方）
   const monthlyStats = useMemo(() => {
@@ -123,6 +126,41 @@ export default function DashboardPage() {
     }
   };
 
+  // 一括登録
+  const handleBatchSubmit = async (transactionsData: TransactionInput[]) => {
+    try {
+      // 各トランザクションを順次登録
+      for (const data of transactionsData) {
+        // TransactionInputをTransactionFormDataに変換
+        const formData: TransactionFormValues = {
+          date: data.date,
+          amount: data.amount,
+          categoryMain: data.category.main,
+          categorySub: data.category.sub,
+          description: data.description,
+          paymentMethod: data.paymentMethod,
+          isIncome: data.isIncome,
+          hasAdvance: !!data.advance,
+          advance: data.advance
+            ? {
+                type: data.advance.type || null,
+                totalAmount: data.advance.totalAmount || data.amount,
+                advanceAmount: data.advance.advanceAmount || 0,
+                personalAmount: data.advance.personalAmount || data.amount,
+                memo: data.advance.memo || "",
+              }
+            : undefined,
+          memo: data.memo || "",
+        };
+        const transactionData = transformFormDataToTransaction(formData);
+        await createTransaction(transactionData);
+      }
+    } catch (error) {
+      console.error("一括登録エラー:", error);
+      throw error;
+    }
+  };
+
   return (
     <DashboardTemplate>
       <PageHeader
@@ -130,6 +168,8 @@ export default function DashboardPage() {
         userName={user?.displayName}
         showAddButton
         onAddClick={() => setFormOpen(true)}
+        showImageButton
+        onImageClick={() => setBatchImageDialogOpen(true)}
       />
 
       {/* 月次統計カード */}
@@ -153,6 +193,12 @@ export default function DashboardPage() {
         onOpenChange={setFormOpen}
         onSubmit={handleSubmit}
         mode="create"
+      />
+
+      <BatchImageRecognitionDialog
+        open={batchImageDialogOpen}
+        onOpenChange={setBatchImageDialogOpen}
+        onBatchSubmit={handleBatchSubmit}
       />
     </DashboardTemplate>
   );
