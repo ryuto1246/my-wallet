@@ -8,6 +8,7 @@ import { useState, useMemo } from "react";
 import {
   useAuth,
   useTransactions,
+  useDashboardTransactions,
   useAdvance,
   useBalanceAdjustments,
 } from "@/hooks";
@@ -41,8 +42,12 @@ import { createBalanceAdjustment } from "@/lib/firebase";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { transactions, loading, createTransaction, fetchTransactions } =
-    useTransactions();
+  const { createTransaction } = useTransactions();
+  const {
+    transactions: allTransactions,
+    loading: allTransactionsLoading,
+    refetch: refetchAllTransactions,
+  } = useDashboardTransactions();
   const { balance } = useAdvance();
   const { adjustments } = useBalanceAdjustments();
   const [formOpen, setFormOpen] = useState(false);
@@ -74,12 +79,12 @@ export default function DashboardPage() {
   // 選択期間の収支を計算（全体と立替除外の両方）
   const periodStats = useMemo(() => {
     const stats = calculatePeriodStats(
-      transactions,
+      allTransactions,
       dateRange.start,
       dateRange.end
     );
 
-    const periodTransactions = transactions.filter((t) => {
+    const periodTransactions = allTransactions.filter((t) => {
       const txDate = new Date(t.date);
       return (
         txDate >= dateRange.start &&
@@ -111,11 +116,11 @@ export default function DashboardPage() {
       actualExpense, // 立替除外の支出額
       actualBalance, // 実収支
     };
-  }, [transactions, dateRange]);
+  }, [allTransactions, dateRange]);
 
   // 支出の内訳を計算（立替金額と自己負担額）
   const expenseDetails = useMemo(() => {
-    const periodTransactions = transactions.filter((t) => {
+    const periodTransactions = allTransactions.filter((t) => {
       const txDate = new Date(t.date);
       return (
         txDate >= dateRange.start &&
@@ -129,7 +134,11 @@ export default function DashboardPage() {
     let personalAmount = 0;
 
     periodTransactions.forEach((t) => {
-      if (t.advance) {
+      if (
+        t.advance &&
+        t.advance.advanceAmount !== undefined &&
+        t.advance.personalAmount !== undefined
+      ) {
         advanceAmount += t.advance.advanceAmount;
         personalAmount += t.advance.personalAmount;
       } else {
@@ -145,18 +154,21 @@ export default function DashboardPage() {
     }
 
     return undefined;
-  }, [transactions, dateRange]);
+  }, [allTransactions, dateRange]);
 
   // 決済手段別の残高を計算（最終確認基準）
   const paymentMethodBalances = useMemo(() => {
     console.log("💰 Calculating payment method balances:", {
-      transactionsCount: transactions.length,
+      transactionsCount: allTransactions.length,
       adjustmentsCount: adjustments.length,
     });
-    const balances = calculatePaymentMethodBalances(transactions, adjustments);
+    const balances = calculatePaymentMethodBalances(
+      allTransactions,
+      adjustments
+    );
     console.log("✅ Payment method balances:", balances);
     return balances;
-  }, [transactions, adjustments]);
+  }, [allTransactions, adjustments]);
 
   // 選択された決済手段の期待残高を取得
   const selectedPaymentMethodBalance = useMemo(() => {
@@ -211,7 +223,7 @@ export default function DashboardPage() {
       }
 
       // 一括登録完了後、トランザクションリストを再取得してグラフに反映
-      await fetchTransactions();
+      await refetchAllTransactions();
     } catch (error) {
       console.error("一括登録エラー:", error);
       throw error;
@@ -300,7 +312,7 @@ export default function DashboardPage() {
       {/* 期間別統計カード */}
       <MonthlyStatsCards
         stats={periodStats}
-        loading={loading}
+        loading={allTransactionsLoading}
         expenseDetails={expenseDetails}
         advanceBalance={balance}
         period={selectedPeriod}
@@ -320,7 +332,7 @@ export default function DashboardPage() {
         {/* 右カラム：残高推移グラフ */}
         <div className="space-y-4">
           <BalanceChart
-            transactions={transactions}
+            transactions={allTransactions}
             adjustments={adjustments}
             period={chartPeriod}
             onPeriodChange={setChartPeriod}

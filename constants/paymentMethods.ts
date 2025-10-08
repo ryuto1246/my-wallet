@@ -18,6 +18,11 @@ export const PAYMENT_METHODS: PaymentMethodInfo[] = [
     color: '#00A040',
   },
   {
+    value: PaymentMethod.SMBC_BANK,
+    label: '三井住友銀行',
+    color: '#00A040',
+  },
+  {
     value: PaymentMethod.SONY_BANK,
     label: 'ソニー銀行',
     color: '#0063DB',

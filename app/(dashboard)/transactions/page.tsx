@@ -42,6 +42,11 @@ export default function TransactionsPage() {
   const {
     transactions,
     loading,
+    currentPage,
+    hasMore,
+    hasPrevious,
+    nextPage,
+    previousPage,
     createTransaction,
     updateTransaction,
     deleteTransaction,
@@ -339,7 +344,12 @@ export default function TransactionsPage() {
         showBadge
         showPaymentMethod
         dateFormat="yyyy年M月d日(E)"
+        currentPage={currentPage}
+        hasMore={hasMore}
+        hasPrevious={hasPrevious}
         onAddClick={() => setFormOpen(true)}
+        onNextPage={nextPage}
+        onPreviousPage={previousPage}
         onDelete={handleDelete}
         onEdit={handleEdit}
       />

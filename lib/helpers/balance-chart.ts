@@ -140,7 +140,7 @@ function calculateBalancesAtDate(
             income += t.amount;
           } else {
             // 支出の場合、立替分は除外
-            const actualAmount = t.advance
+            const actualAmount = t.advance && t.advance.personalAmount !== undefined
               ? t.advance.personalAmount
               : t.amount;
             expense += actualAmount;
@@ -178,7 +178,7 @@ function calculateBalancesAtDate(
             income += t.amount;
           } else {
             // 支出の場合、立替分は除外
-            const actualAmount = t.advance
+            const actualAmount = t.advance && t.advance.personalAmount !== undefined
               ? t.advance.personalAmount
               : t.amount;
             expense += actualAmount;

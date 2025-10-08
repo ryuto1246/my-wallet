@@ -73,7 +73,7 @@ export const getPaymentServiceFromMethod = (
  */
 export const normalizePaymentMethod = (paymentMethod: string): string => {
   // 既にPaymentMethodValueの場合はそのまま返す
-  const validValues = ["olive", "sony_bank", "d_payment", "d_card", "paypay", "cash", "other"];
+  const validValues = ["olive", "smbc_bank", "sony_bank", "d_payment", "d_card", "paypay", "cash", "other"];
   if (validValues.includes(paymentMethod)) {
     return paymentMethod;
   }
@@ -81,7 +81,9 @@ export const normalizePaymentMethod = (paymentMethod: string): string => {
   // 表示名からPaymentMethodValueに変換
   const normalizedMethod = paymentMethod.toLowerCase().replace(/\s+/g, "");
   
-  if (normalizedMethod.includes("olive") || normalizedMethod.includes("三井住友")) return "olive";
+  // 三井住友銀行と三井住友カード/OLIVEを区別
+  if (normalizedMethod.includes("三井住友銀行") || normalizedMethod.includes("smbc")) return "smbc_bank";
+  if (normalizedMethod.includes("olive") || normalizedMethod.includes("三井住友カード") || normalizedMethod.includes("三井住友olive")) return "olive";
   if (normalizedMethod.includes("ソニー") || normalizedMethod.includes("sony")) return "sony_bank";
   if (normalizedMethod.includes("d払い")) return "d_payment";
   if (normalizedMethod.includes("dカード")) return "d_card";

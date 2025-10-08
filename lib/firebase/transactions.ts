@@ -268,3 +268,39 @@ export const deleteTransaction = async (transactionId: string): Promise<void> =>
   }
 };
 
+/**
+ * 全てのトランザクションを取得（ダッシュボード用）
+ */
+export const getAllTransactions = async (
+  userId: string,
+  filter?: TransactionFilter
+): Promise<Transaction[]> => {
+  try {
+    const allTransactions: Transaction[] = [];
+    let lastDoc: QueryDocumentSnapshot | undefined = undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { transactions, lastDoc: newLastDoc } = await getTransactions(
+        userId,
+        filter,
+        500, // 一度に500件取得
+        lastDoc
+      );
+      
+      allTransactions.push(...transactions);
+      
+      if (transactions.length < 500 || !newLastDoc) {
+        hasMore = false;
+      } else {
+        lastDoc = newLastDoc;
+      }
+    }
+
+    return allTransactions;
+  } catch (error) {
+    console.error('全トランザクション取得エラー:', error);
+    throw error;
+  }
+};
+

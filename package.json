@@ -12,7 +12,8 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "import-csv": "tsx scripts/import-csv.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -53,10 +54,13 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/ui": "^3.2.4",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
+    "firebase-admin": "^13.5.0",
     "jsdom": "^27.0.0",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^3.2.4"
   }

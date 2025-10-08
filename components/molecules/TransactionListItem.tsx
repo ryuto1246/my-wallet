@@ -137,12 +137,14 @@ export function TransactionListItem({
                 {getPaymentMethodLabel(paymentMethod)}
               </span>
             )}
-            {advance && (
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 backdrop-blur-md border border-blue-200 text-blue-700">
-                立替: ¥{advance.advanceAmount.toLocaleString()} / 自己: ¥
-                {advance.personalAmount.toLocaleString()}
-              </span>
-            )}
+            {advance &&
+              advance.advanceAmount !== undefined &&
+              advance.personalAmount !== undefined && (
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 backdrop-blur-md border border-blue-200 text-blue-700">
+                  立替: ¥{advance.advanceAmount.toLocaleString()} / 自己: ¥
+                  {advance.personalAmount.toLocaleString()}
+                </span>
+              )}
             {isTransfer && transfer && (
               <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 backdrop-blur-md border border-indigo-200 text-indigo-700 font-semibold">
                 {getPaymentMethodLabel(transfer.from)} →{" "}

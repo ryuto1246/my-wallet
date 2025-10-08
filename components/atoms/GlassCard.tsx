@@ -54,7 +54,7 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
           "rounded-3xl border-2 border-white/40",
           "shadow-glass-lg",
           "transition-all duration-300 ease-in-out",
-          "hover:shadow-glass-lg hover:scale-[1.01] hover:border-white/60",
+          "hover:shadow-glass-lg hover:scale-[1.001] hover:border-white/60",
 
           // バリアント
           variants[variant],

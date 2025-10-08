@@ -4,7 +4,7 @@
  * Liquid Glassスタイルを適用
  */
 
-import { GlassCard } from "@/components/atoms";
+import { GlassCard, Pagination } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { TransactionListItem } from "@/components/molecules";
@@ -20,8 +20,15 @@ interface TransactionListProps {
   dateFormat?: string;
   emptyMessage?: string;
   emptyButtonText?: string;
+  // ページネーション関連
+  currentPage?: number;
+  hasMore?: boolean;
+  hasPrevious?: boolean;
   onAddClick: () => void;
   onViewAllClick?: () => void;
+  onLoadMore?: () => void;
+  onNextPage?: () => void;
+  onPreviousPage?: () => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 }
@@ -36,8 +43,14 @@ export function TransactionList({
   dateFormat = "M/d(E)",
   emptyMessage = "まだ取引がありません",
   emptyButtonText = "最初の取引を追加",
+  currentPage = 1,
+  hasMore = false,
+  hasPrevious = false,
   onAddClick,
   onViewAllClick,
+  onLoadMore,
+  onNextPage,
+  onPreviousPage,
   onDelete,
   onEdit,
 }: TransactionListProps) {
@@ -59,6 +72,20 @@ export function TransactionList({
             </Button>
           )}
         </div>
+
+        {/* ページネーション（上部） */}
+        {onNextPage && onPreviousPage && transactions.length > 0 && (
+          <div className="mb-4">
+            <Pagination
+              currentPage={currentPage}
+              hasNext={hasMore}
+              hasPrevious={hasPrevious}
+              onNextPage={onNextPage}
+              onPreviousPage={onPreviousPage}
+              loading={loading}
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-8 sm:py-12 text-sm sm:text-base text-gray-700">
@@ -83,28 +110,55 @@ export function TransactionList({
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
-            {transactions.map((transaction) => (
-              <TransactionListItem
-                key={transaction.id}
-                id={transaction.id}
-                date={transaction.date}
-                description={transaction.description}
-                amount={transaction.amount}
-                isIncome={transaction.isIncome}
-                categoryMain={transaction.category.main}
-                categorySub={transaction.category.sub}
-                paymentMethod={transaction.paymentMethod}
-                advance={transaction.advance}
-                transfer={transaction.transfer}
-                showBadge={showBadge}
-                showPaymentMethod={showPaymentMethod}
-                dateFormat={dateFormat}
-                onDelete={onDelete}
-                onEdit={onEdit}
-              />
-            ))}
-          </div>
+          <>
+            <div className="space-y-2">
+              {transactions.map((transaction) => (
+                <TransactionListItem
+                  key={transaction.id}
+                  id={transaction.id}
+                  date={transaction.date}
+                  description={transaction.description}
+                  amount={transaction.amount}
+                  isIncome={transaction.isIncome}
+                  categoryMain={transaction.category.main}
+                  categorySub={transaction.category.sub}
+                  paymentMethod={transaction.paymentMethod}
+                  advance={transaction.advance}
+                  transfer={transaction.transfer}
+                  showBadge={showBadge}
+                  showPaymentMethod={showPaymentMethod}
+                  dateFormat={dateFormat}
+                  onDelete={onDelete}
+                  onEdit={onEdit}
+                />
+              ))}
+            </div>
+
+            {/* ページネーション（下部） */}
+            {onNextPage && onPreviousPage ? (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={currentPage}
+                  hasNext={hasMore}
+                  hasPrevious={hasPrevious}
+                  onNextPage={onNextPage}
+                  onPreviousPage={onPreviousPage}
+                  loading={loading}
+                />
+              </div>
+            ) : hasMore && onLoadMore ? (
+              <div className="mt-4 text-center">
+                <Button
+                  variant="outline"
+                  onClick={onLoadMore}
+                  disabled={loading}
+                  className="rounded-xl bg-white/40 hover:bg-white/60 border-white/30 transition-all"
+                >
+                  {loading ? "読み込み中..." : "さらに読み込む"}
+                </Button>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </GlassCard>

@@ -19,28 +19,122 @@ export const useTransactions = (filter?: TransactionFilter) => {
     transactions,
     filter: currentFilter,
     loading,
+    currentPage,
+    lastDoc,
+    pageHistory,
+    hasMore,
     setTransactions,
+    appendTransactions,
     addTransaction,
     updateTransaction: updateTransactionStore,
     deleteTransaction: deleteTransactionStore,
     setFilter,
     setLoading,
+    setCurrentPage,
+    setLastDoc,
+    setPageHistory,
+    setHasMore,
+    resetPagination,
   } = useTransactionStore();
   
-  // トランザクション一覧を取得
+  // トランザクション一覧を取得（初回）
   const fetchTransactions = useCallback(async () => {
     if (!user) return;
     
     setLoading(true);
+    resetPagination();
     try {
-      const { transactions } = await getTransactions(user.id, currentFilter);
+      const { transactions, lastDoc: newLastDoc } = await getTransactions(user.id, currentFilter, 50);
       setTransactions(transactions);
+      setLastDoc(newLastDoc);
+      setPageHistory([null, newLastDoc]);
+      setHasMore(transactions.length === 50);
+      setCurrentPage(1);
     } catch (error) {
       console.error('トランザクション取得エラー:', error);
     } finally {
       setLoading(false);
     }
-  }, [user, currentFilter, setTransactions, setLoading]);
+  }, [user, currentFilter, setTransactions, setLoading, setLastDoc, setPageHistory, setHasMore, setCurrentPage, resetPagination]);
+  
+  // 追加のトランザクションを読み込み（ページネーション）
+  const loadMore = useCallback(async () => {
+    if (!user || !lastDoc || !hasMore || loading) return;
+    
+    setLoading(true);
+    try {
+      const { transactions: newTransactions, lastDoc: newLastDoc } = await getTransactions(
+        user.id,
+        currentFilter,
+        50,
+        lastDoc
+      );
+      appendTransactions(newTransactions);
+      setLastDoc(newLastDoc);
+      setHasMore(newTransactions.length === 50);
+    } catch (error) {
+      console.error('追加トランザクション取得エラー:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, currentFilter, lastDoc, hasMore, loading, appendTransactions, setLoading, setLastDoc, setHasMore]);
+  
+  // 次のページへ
+  const nextPage = useCallback(async () => {
+    if (!user || !hasMore || loading) return;
+    
+    setLoading(true);
+    try {
+      const startDoc = pageHistory[currentPage] || undefined;
+      const { transactions: newTransactions, lastDoc: newLastDoc } = await getTransactions(
+        user.id,
+        currentFilter,
+        50,
+        startDoc
+      );
+      setTransactions(newTransactions);
+      setLastDoc(newLastDoc);
+      
+      // ページ履歴を更新
+      const newHistory = [...pageHistory];
+      if (newHistory.length <= currentPage + 1) {
+        newHistory.push(newLastDoc);
+      }
+      setPageHistory(newHistory);
+      
+      setHasMore(newTransactions.length === 50);
+      setCurrentPage(currentPage + 1);
+    } catch (error) {
+      console.error('次のページ取得エラー:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, currentFilter, currentPage, pageHistory, hasMore, loading, setTransactions, setLoading, setLastDoc, setPageHistory, setHasMore, setCurrentPage]);
+  
+  // 前のページへ
+  const previousPage = useCallback(async () => {
+    if (!user || currentPage <= 1 || loading) return;
+    
+    setLoading(true);
+    try {
+      const startDoc = pageHistory[currentPage - 2] || undefined;
+      const { transactions: newTransactions, lastDoc: newLastDoc } = await getTransactions(
+        user.id,
+        currentFilter,
+        50,
+        startDoc
+      );
+      setTransactions(newTransactions);
+      setLastDoc(newLastDoc);
+      setCurrentPage(currentPage - 1);
+      // hasMoreは前のページに戻る場合は常にtrue（次のページが存在する）
+      setHasMore(true);
+    } catch (error) {
+      console.error('前のページ取得エラー:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, currentFilter, currentPage, pageHistory, loading, setTransactions, setLoading, setLastDoc, setCurrentPage, setHasMore]);
   
   // 初回マウント時とフィルター変更時に取得
   useEffect(() => {
@@ -119,7 +213,13 @@ export const useTransactions = (filter?: TransactionFilter) => {
   return {
     transactions,
     loading,
+    currentPage,
+    hasMore,
+    hasPrevious: currentPage > 1,
     fetchTransactions,
+    loadMore,
+    nextPage,
+    previousPage,
     createTransaction: create,
     updateTransaction: update,
     deleteTransaction,

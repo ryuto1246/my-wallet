@@ -7,7 +7,8 @@ import { AdvanceInfo } from './advance';
 import { CalendarLink } from './calendar';
 
 export const PaymentMethod = {
-  OLIVE: 'olive',           // 三井住友OLIVE
+  OLIVE: 'olive',           // 三井住友OLIVE（クレジットカード）
+  SMBC_BANK: 'smbc_bank',   // 三井住友銀行
   SONY_BANK: 'sony_bank',   // ソニー銀行
   D_PAYMENT: 'd_payment',   // d払い
   D_CARD: 'd_card',         // dカード

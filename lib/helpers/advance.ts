@@ -52,6 +52,11 @@ export function getActualExpenseAmount(transaction: Transaction): number {
 
   const { personalAmount } = transaction.advance;
 
+  // personalAmountが未定義の場合は全額を返す（古いデータ対応）
+  if (personalAmount === undefined) {
+    return transaction.amount;
+  }
+
   // 友人立替・親負担どちらも自己負担額のみカウント
   return personalAmount;
 }
@@ -82,17 +87,20 @@ export function validateAdvanceInfo(advance: AdvanceInfo): {
     errors.push('支払総額は正の数である必要があります');
   }
 
-  if (advance.advanceAmount < 0) {
+  if (advance.advanceAmount === undefined || advance.advanceAmount < 0) {
     errors.push('立替金額は0以上である必要があります');
   }
 
-  if (advance.personalAmount < 0) {
+  if (advance.personalAmount === undefined || advance.personalAmount < 0) {
     errors.push('自己負担額は0以上である必要があります');
   }
 
-  const sum = advance.advanceAmount + advance.personalAmount;
-  if (Math.abs(sum - advance.totalAmount) > 0.01) {
-    errors.push('立替金額と自己負担額の合計が支払総額と一致しません');
+  // advanceAmountとpersonalAmountが有効な場合のみ合計をチェック
+  if (advance.advanceAmount !== undefined && advance.personalAmount !== undefined) {
+    const sum = advance.advanceAmount + advance.personalAmount;
+    if (Math.abs(sum - advance.totalAmount) > 0.01) {
+      errors.push('立替金額と自己負担額の合計が支払総額と一致しません');
+    }
   }
 
   return {
@@ -106,11 +114,15 @@ export function validateAdvanceInfo(advance: AdvanceInfo): {
  */
 export function formatAdvanceInfo(advance: AdvanceInfo): string {
   const typeLabel = advance.type === 'friend' ? '友人立替' : '親負担';
-  const parts = [
-    typeLabel,
-    `立替: ¥${advance.advanceAmount.toLocaleString()}`,
-    `自己: ¥${advance.personalAmount.toLocaleString()}`,
-  ];
+  const parts = [typeLabel];
+
+  // advanceAmountとpersonalAmountが有効な場合のみ追加
+  if (advance.advanceAmount !== undefined && advance.personalAmount !== undefined) {
+    parts.push(
+      `立替: ¥${advance.advanceAmount.toLocaleString()}`,
+      `自己: ¥${advance.personalAmount.toLocaleString()}`
+    );
+  }
 
   if (advance.memo) {
     parts.push(`(${advance.memo})`);
@@ -132,8 +144,7 @@ export function getUnrecoveredAdvances(transactions: Transaction[]): Transaction
  * 立替金回収を記録
  */
 export function markAdvanceAsRecovered(
-  transaction: Transaction,
-  recoveryAmount: number
+  transaction: Transaction
 ): Transaction {
   if (!transaction.advance) {
     throw new Error('このトランザクションは立替ではありません');
