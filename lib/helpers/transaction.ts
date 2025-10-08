@@ -102,7 +102,26 @@ export function filterTransactionsByType(
 export function transformFormDataToTransaction(
   data: TransactionFormValues
 ): Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt"> {
-  const baseTransaction = {
+  const baseTransaction: {
+    date: Date;
+    amount: number;
+    category: { main: string; sub: string };
+    description: string;
+    paymentMethod: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
+    isIncome: boolean;
+    memo?: string;
+    ai?: {
+      suggested: boolean;
+      confidence: number;
+      originalSuggestion: {
+        category: { main: string; sub: string };
+        description: string;
+      };
+      userModified: boolean;
+      originalMerchantName?: string;
+      userKeyword?: string;
+    };
+  } = {
     date: data.date,
     amount: data.amount,
     category: {
@@ -120,6 +139,46 @@ export function transformFormDataToTransaction(
       | "other",
     isIncome: data.isIncome,
   };
+
+  // メモがある場合は追加
+  if (data.memo) {
+    baseTransaction.memo = data.memo;
+  }
+
+  // 元の店舗名またはユーザーキーワードがある場合はAI情報として追加
+  if (data.originalMerchantName || data.userKeyword) {
+    const aiInfo: {
+      suggested: boolean;
+      confidence: number;
+      originalSuggestion: {
+        category: { main: string; sub: string };
+        description: string;
+      };
+      userModified: boolean;
+      originalMerchantName?: string;
+      userKeyword?: string;
+    } = {
+      suggested: true,
+      confidence: 1.0,
+      originalSuggestion: {
+        category: {
+          main: data.categoryMain,
+          sub: data.categorySub,
+        },
+        description: data.description,
+      },
+      userModified: false,
+    };
+    
+    if (data.originalMerchantName) {
+      aiInfo.originalMerchantName = data.originalMerchantName;
+    }
+    if (data.userKeyword) {
+      aiInfo.userKeyword = data.userKeyword;
+    }
+    
+    baseTransaction.ai = aiInfo;
+  }
 
   // 立替情報がある場合は追加
   if (data.hasAdvance && data.advance) {

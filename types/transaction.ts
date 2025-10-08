@@ -26,6 +26,8 @@ export interface AISuggestion {
     description: string;
   };
   userModified: boolean;    // ユーザーが修正したかどうか
+  originalMerchantName?: string; // 画像認識時の元の店舗名（画像から追加された場合のみ）
+  userKeyword?: string;     // ユーザーが最後に入力したキーワード
 }
 
 export interface Transaction {
@@ -41,6 +43,7 @@ export interface Transaction {
   calendar?: CalendarLink;  // カレンダー連携情報（任意）
   ai?: AISuggestion;        // AI提案情報（任意）
   imageUrl?: string;        // スクショのURL（任意）
+  memo?: string;            // メモ（任意）
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +57,9 @@ export interface TransactionFormData {
   isIncome: boolean;
   advance?: Partial<AdvanceInfo>;
   calendarEventId?: string;
+  imageUrl?: string;
+  memo?: string;
+  ai?: Partial<AISuggestion>; // AI情報（画像認識時の元の店舗名など）
 }
 
 export interface TransactionInput {
@@ -66,6 +72,7 @@ export interface TransactionInput {
   advance?: Partial<AdvanceInfo>;
   imageUrl?: string;
   memo?: string;
+  ai?: Partial<AISuggestion>; // AI情報（画像認識時の元の店舗名など）
 }
 
 export interface TransactionFilter {

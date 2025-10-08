@@ -37,8 +37,10 @@ export interface RecognizedTransaction {
   date: Date | null;
   /** 金額 */
   amount: number | null;
-  /** 店舗名・項目名 */
+  /** 構造化された項目名（例: ??（セブンイレブン）で買い物） */
   merchantName: string | null;
+  /** 画像に記載されている元の店舗名（例: セブンイレブン渋谷店） */
+  originalMerchantName?: string | null;
   /** カテゴリー（AI推測） */
   suggestedCategory?: {
     main: string;

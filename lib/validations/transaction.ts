@@ -46,6 +46,10 @@ export const transactionFormSchema = z.object({
   memo: z.string().optional(),
   // 立替情報（任意）
   advance: advanceInfoSchema.optional(),
+  // 画像認識時の元の店舗名（内部使用）
+  originalMerchantName: z.string().optional(),
+  // ユーザーが入力したキーワード（内部使用）
+  userKeyword: z.string().optional(),
 });
 
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;

@@ -22,6 +22,8 @@ interface TransactionListProps {
   emptyButtonText?: string;
   onAddClick: () => void;
   onViewAllClick?: () => void;
+  onDelete?: (id: string) => void;
+  onEdit?: (id: string) => void;
 }
 
 export function TransactionList({
@@ -36,6 +38,8 @@ export function TransactionList({
   emptyButtonText = "最初の取引を追加",
   onAddClick,
   onViewAllClick,
+  onDelete,
+  onEdit,
 }: TransactionListProps) {
   return (
     <GlassCard variant="soft" intensity="strong" className="overflow-hidden">
@@ -95,6 +99,8 @@ export function TransactionList({
                 showBadge={showBadge}
                 showPaymentMethod={showPaymentMethod}
                 dateFormat={dateFormat}
+                onDelete={onDelete}
+                onEdit={onEdit}
               />
             ))}
           </div>

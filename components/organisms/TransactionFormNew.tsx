@@ -31,6 +31,7 @@ import {
   TransactionFormValues,
 } from "@/lib/validations/transaction";
 import { PAYMENT_METHODS } from "@/constants/paymentMethods";
+import type { PaymentMethodValue } from "@/types/transaction";
 import { useAISuggestion, useImageRecognition } from "@/hooks";
 import { SuggestionCarousel } from "@/components/molecules";
 import { saveUserCorrection } from "@/lib/firebase/ai-learning";
@@ -70,7 +71,7 @@ const getDayOfWeek = (): string => {
   return days[new Date().getDay()];
 };
 
-export function TransactionForm({
+export function TransactionFormNew({
   open,
   onOpenChange,
   onSubmit,
@@ -84,6 +85,7 @@ export function TransactionForm({
   const [keyword, setKeyword] = useState("");
   const [isAISuggestionApplied, setIsAISuggestionApplied] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
+  const [initialKeyword, setInitialKeyword] = useState<string | null>(null);
 
   // enableImageInputが変更されたら画像アップロードを表示
   useEffect(() => {
@@ -131,13 +133,87 @@ export function TransactionForm({
     },
   });
 
+  // defaultValuesが変更されたら、フォームをリセット
+  useEffect(() => {
+    if (open) {
+      if (defaultValues) {
+        // 編集モード：defaultValuesでリセット
+        const resetValues = {
+          date: new Date(),
+          amount: 0,
+          categoryMain: "",
+          categorySub: "",
+          description: "",
+          paymentMethod: "",
+          isIncome: false,
+          hasAdvance: false,
+          memo: "",
+          advance: undefined,
+          ...defaultValues,
+        };
+        console.log("TransactionFormNew reset with values:", resetValues);
+        form.reset(resetValues);
+
+        // キーワード欄の初期値を設定（優先順位: ユーザーキーワード > 元の店舗名）
+        const initKeyword =
+          defaultValues.userKeyword || defaultValues.originalMerchantName || "";
+        setKeyword(initKeyword);
+        setInitialKeyword(initKeyword);
+      } else {
+        // 新規作成モード：空の値でリセット
+        form.reset({
+          date: new Date(),
+          amount: 0,
+          categoryMain: "",
+          categorySub: "",
+          description: "",
+          paymentMethod: "",
+          isIncome: false,
+          hasAdvance: false,
+          memo: "",
+          advance: undefined,
+        });
+        setKeyword("");
+        setInitialKeyword(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, JSON.stringify(defaultValues)]);
+
   const amount = form.watch("amount");
   const paymentMethod = form.watch("paymentMethod");
+
+  // 編集モードかどうかを判定
+  const isEditMode = mode === "edit" && defaultValues;
+
+  // 現在の情報を表示するためのサジェスチョン（編集モード時）
+  const currentInfoSuggestion =
+    isEditMode && defaultValues
+      ? {
+          category: {
+            main: defaultValues.categoryMain || "",
+            sub: defaultValues.categorySub || "",
+          },
+          description: defaultValues.description || "",
+          isIncome: defaultValues.isIncome || false,
+          confidence: 1.0,
+          hasAdvance: defaultValues.hasAdvance || false,
+          advanceType: defaultValues.advance?.type || null,
+          advanceAmount: defaultValues.advance?.advanceAmount || undefined,
+        }
+      : null;
 
   // 金額とキーワードが変更されたら自動的にAIサジェスチョンを取得
   useEffect(() => {
     if (!aiAvailable || !keyword.trim() || keyword.length < 2) {
       clearSuggestion();
+      return;
+    }
+
+    // 編集モードで初期キーワードから変更されていない場合はサジェスチョンを取得しない
+    const isInitialKeyword =
+      mode === "edit" && initialKeyword !== null && keyword === initialKeyword;
+    if (isInitialKeyword) {
       return;
     }
 
@@ -296,7 +372,7 @@ export function TransactionForm({
             },
             {
               amount: data.amount,
-              paymentMethod: data.paymentMethod,
+              paymentMethod: data.paymentMethod as PaymentMethodValue,
               timeOfDay: getTimeOfDay(),
               dayOfWeek: getDayOfWeek(),
             }
@@ -304,7 +380,13 @@ export function TransactionForm({
         }
       }
 
-      await onSubmit(data);
+      // ユーザーが入力したキーワードを保存
+      const submitData = {
+        ...data,
+        userKeyword: keyword.trim() || undefined,
+      };
+
+      await onSubmit(submitData);
       form.reset();
       setKeyword("");
       clearSuggestion();
@@ -602,13 +684,31 @@ export function TransactionForm({
               </div>
             )}
 
-            {!aiLoading && suggestions.length > 0 && !quotaExceeded && (
-              <SuggestionCarousel
-                suggestions={suggestions}
-                onSelect={handleSuggestionSelect}
-                form={form}
-                amount={amount}
-              />
+            {/* 編集モード時は現在の情報を表示、新規作成時またはユーザーがキーワードを入力した時はAIサジェスチョンを表示 */}
+            {!aiLoading && !quotaExceeded && (
+              <>
+                {/* 編集モードでAIサジェスチョンがない場合：現在の情報を表示 */}
+                {isEditMode &&
+                  suggestions.length === 0 &&
+                  currentInfoSuggestion && (
+                    <SuggestionCarousel
+                      suggestions={[currentInfoSuggestion]}
+                      onSelect={handleSuggestionSelect}
+                      form={form}
+                      amount={amount}
+                    />
+                  )}
+
+                {/* AIサジェスチョンがある場合：AIサジェスチョンを表示 */}
+                {suggestions.length > 0 && (
+                  <SuggestionCarousel
+                    suggestions={suggestions}
+                    onSelect={handleSuggestionSelect}
+                    form={form}
+                    amount={amount}
+                  />
+                )}
+              </>
             )}
 
             {aiError && !quotaExceeded && (

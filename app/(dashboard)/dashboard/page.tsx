@@ -12,7 +12,7 @@ import {
   PageHeader,
   MonthlyStatsCards,
   TransactionList,
-  TransactionForm,
+  TransactionFormNew,
   BatchImageRecognitionDialog,
 } from "@/components/organisms";
 import { TransactionFormValues } from "@/lib/validations/transaction";
@@ -188,7 +188,7 @@ export default function DashboardPage() {
         onViewAllClick={() => router.push("/transactions")}
       />
 
-      <TransactionForm
+      <TransactionFormNew
         open={formOpen}
         onOpenChange={setFormOpen}
         onSubmit={handleSubmit}

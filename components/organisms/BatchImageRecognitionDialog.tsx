@@ -6,7 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Check, AlertTriangle } from "lucide-react";
+import { Loader2, Check, AlertTriangle, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,15 +14,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { ImageUploadZone } from "@/components/organisms/ImageUploadZone";
+import { TransactionFormNew } from "@/components/organisms";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/helpers/format";
 import { useAuth, useTransactions } from "@/hooks";
 import { recognizeBatchTransactionsFromImage } from "@/lib/gemini/batch-vision";
 import { uploadTransactionImage } from "@/lib/firebase/storage";
 import { batchDetectDuplicates } from "@/lib/helpers/duplicate-detection";
-import type { RecognizedTransaction } from "@/types/image-recognition";
+import type {
+  RecognizedTransaction,
+  PaymentService,
+} from "@/types/image-recognition";
 import type { TransactionInput } from "@/types/transaction";
+import { TransactionFormValues } from "@/lib/validations/transaction";
 
 interface BatchImageRecognitionDialogProps {
   open: boolean;
@@ -63,6 +76,10 @@ export function BatchImageRecognitionDialog({
   const [recognitionItems, setRecognitionItems] = useState<RecognitionItem[]>(
     []
   );
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editFormOpen, setEditFormOpen] = useState(false);
+  const [selectedPaymentService, setSelectedPaymentService] =
+    useState<PaymentService>("unknown");
 
   // 画像アップロードと認識
   const handleImageUpload = async (files: File[]) => {
@@ -79,7 +96,13 @@ export function BatchImageRecognitionDialog({
 
       // 2. 画像から複数の取引を認識
       const recognizedTransactions = await recognizeBatchTransactionsFromImage(
-        file
+        file,
+        {
+          serviceHint:
+            selectedPaymentService !== "unknown"
+              ? selectedPaymentService
+              : undefined,
+        }
       );
 
       if (recognizedTransactions.length === 0) {
@@ -147,6 +170,71 @@ export function BatchImageRecognitionDialog({
     );
   };
 
+  // 認識アイテムをクリックして編集
+  const handleItemClick = (index: number) => {
+    setEditingIndex(index);
+    setEditFormOpen(true);
+  };
+
+  // 編集フォームの送信
+  const handleEditSubmit = async (data: TransactionFormValues) => {
+    if (editingIndex === null) return;
+
+    // 認識アイテムを更新
+    setRecognitionItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== editingIndex) return item;
+
+        return {
+          ...item,
+          transaction: {
+            ...item.transaction,
+            date: data.date,
+            amount: data.amount,
+            merchantName: data.description,
+            suggestedCategory: {
+              main: data.categoryMain,
+              sub: data.categorySub,
+            },
+          } as RecognizedTransaction,
+        };
+      })
+    );
+
+    setEditFormOpen(false);
+    setEditingIndex(null);
+  };
+
+  // 編集中のアイテムのデフォルト値を取得
+  const getEditDefaultValues = ():
+    | Partial<TransactionFormValues>
+    | undefined => {
+    if (editingIndex === null) return undefined;
+
+    const item = recognitionItems[editingIndex];
+    if (!item) return undefined;
+
+    const { transaction } = item;
+    const isIncome = transaction.suggestedCategory?.main === "収入" || false;
+
+    return {
+      date: transaction.date || new Date(),
+      amount: transaction.amount || 0,
+      categoryMain: transaction.suggestedCategory?.main || "",
+      categorySub: transaction.suggestedCategory?.sub || "",
+      description: transaction.merchantName || "",
+      paymentMethod: getPaymentMethodFromService(transaction.paymentService),
+      isIncome,
+      hasAdvance: false,
+      // 画像から読み取った元の店舗名をメモ欄に表示
+      memo: transaction.originalMerchantName
+        ? `元の店舗名: ${transaction.originalMerchantName}`
+        : "",
+      // 元の店舗名を保持（キーワード入力欄用）
+      originalMerchantName: transaction.originalMerchantName || undefined,
+    };
+  };
+
   // 一括登録
   const handleBatchRegister = async () => {
     const selectedItems = recognitionItems.filter((item) => item.selected);
@@ -180,6 +268,22 @@ export function BatchImageRecognitionDialog({
           ),
           isIncome,
           imageUrl: imageUrl || undefined,
+          // 画像から読み取った元の店舗名をAI情報として保存
+          ai: transaction.originalMerchantName
+            ? {
+                suggested: true,
+                confidence: transaction.confidence,
+                originalSuggestion: {
+                  category: transaction.suggestedCategory || {
+                    main: "その他",
+                    sub: "その他",
+                  },
+                  description: transaction.merchantName || "",
+                },
+                userModified: false,
+                originalMerchantName: transaction.originalMerchantName,
+              }
+            : undefined,
         };
       });
 
@@ -202,10 +306,19 @@ export function BatchImageRecognitionDialog({
     setRecognitionItems([]);
     setImageUrl("");
     setError(null);
+    setSelectedPaymentService("unknown");
+  };
+
+  // ダイアログを閉じる時にリセット
+  const handleDialogChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      handleReset();
+    }
+    onOpenChange(isOpen);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogTitle>取引リストから一括入力</DialogTitle>
         <DialogDescription>
@@ -213,6 +326,35 @@ export function BatchImageRecognitionDialog({
         </DialogDescription>
 
         <div className="space-y-6">
+          {/* 決済サービス選択 */}
+          {recognitionItems.length === 0 && !isRecognizing && (
+            <div className="space-y-2">
+              <Label htmlFor="payment-service">決済サービス</Label>
+              <Select
+                value={selectedPaymentService}
+                onValueChange={(value) =>
+                  setSelectedPaymentService(value as PaymentService)
+                }
+              >
+                <SelectTrigger id="payment-service">
+                  <SelectValue placeholder="決済サービスを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unknown">自動判定</SelectItem>
+                  <SelectItem value="olive">三井住友OLIVE</SelectItem>
+                  <SelectItem value="sony">ソニー銀行</SelectItem>
+                  <SelectItem value="dpayment">d払い</SelectItem>
+                  <SelectItem value="dcard">dカード</SelectItem>
+                  <SelectItem value="paypay">PayPay</SelectItem>
+                  <SelectItem value="cash">現金</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                決済サービスを選択すると、より正確に認識できます
+              </p>
+            </div>
+          )}
+
           {/* 画像アップロードエリア */}
           {recognitionItems.length === 0 && (
             <ImageUploadZone
@@ -265,7 +407,7 @@ export function BatchImageRecognitionDialog({
                 {recognitionItems.map((item, index) => (
                   <div
                     key={index}
-                    className={`p-4 border rounded-lg ${
+                    className={`p-4 border rounded-lg transition-all hover:shadow-md ${
                       item.isDuplicate
                         ? "border-yellow-300 bg-yellow-50/50"
                         : item.selected
@@ -378,13 +520,24 @@ export function BatchImageRecognitionDialog({
                           )}
                         </div>
 
-                        {/* 金額 - 右側 */}
-                        <div className="text-right ml-4">
-                          <div className="text-xl font-bold text-gray-900">
-                            {item.transaction.amount !== null
-                              ? `¥${item.transaction.amount.toLocaleString()}`
-                              : "不明"}
+                        {/* 金額と編集ボタン - 右側 */}
+                        <div className="flex items-center gap-3 ml-4">
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-gray-900">
+                              {item.transaction.amount !== null
+                                ? `¥${item.transaction.amount.toLocaleString()}`
+                                : "不明"}
+                            </div>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleItemClick(index)}
+                            className="rounded-xl h-9 w-9 hover:bg-blue-50 hover:text-blue-600 transition-colors flex-shrink-0"
+                            title="編集"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -427,6 +580,16 @@ export function BatchImageRecognitionDialog({
             </div>
           )}
         </div>
+
+        {/* 編集フォーム */}
+        <TransactionFormNew
+          key={editingIndex !== null ? `edit-${editingIndex}` : "new"}
+          open={editFormOpen}
+          onOpenChange={setEditFormOpen}
+          onSubmit={handleEditSubmit}
+          mode="edit"
+          defaultValues={getEditDefaultValues()}
+        />
       </DialogContent>
     </Dialog>
   );

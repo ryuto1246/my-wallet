@@ -42,7 +42,7 @@ export const createTransaction = async (
   try {
     const transactionsRef = collection(db, 'transactions');
     
-    const docRef = await addDoc(transactionsRef, {
+    const docData: Record<string, unknown> = {
       userId,
       date: Timestamp.fromDate(data.date),
       amount: data.amount,
@@ -54,7 +54,24 @@ export const createTransaction = async (
       calendar: data.calendarEventId ? { eventId: data.calendarEventId } : null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    // imageUrlがある場合は追加
+    if (data.imageUrl) {
+      docData.imageUrl = data.imageUrl;
+    }
+
+    // memoがある場合は追加
+    if (data.memo) {
+      docData.memo = data.memo;
+    }
+
+    // AI情報がある場合は追加
+    if (data.ai) {
+      docData.ai = data.ai;
+    }
+    
+    const docRef = await addDoc(transactionsRef, docData);
     
     return docRef.id;
   } catch (error) {
@@ -86,6 +103,7 @@ export const getTransaction = async (transactionId: string): Promise<Transaction
         calendar: data.calendar,
         ai: data.ai,
         imageUrl: data.imageUrl,
+        memo: data.memo,
         createdAt: timestampToDate(data.createdAt),
         updatedAt: timestampToDate(data.updatedAt),
       } as Transaction;
@@ -154,6 +172,7 @@ export const getTransactions = async (
         calendar: data.calendar,
         ai: data.ai,
         imageUrl: data.imageUrl,
+        memo: data.memo,
         createdAt: timestampToDate(data.createdAt),
         updatedAt: timestampToDate(data.updatedAt),
       } as Transaction);
@@ -205,6 +224,15 @@ export const updateTransaction = async (
     }
     if (data.calendarEventId !== undefined) {
       updateData.calendar = { eventId: data.calendarEventId };
+    }
+    if (data.imageUrl !== undefined) {
+      updateData.imageUrl = data.imageUrl;
+    }
+    if (data.memo !== undefined) {
+      updateData.memo = data.memo;
+    }
+    if (data.ai !== undefined) {
+      updateData.ai = data.ai;
     }
     
     await updateDoc(transactionRef, updateData);

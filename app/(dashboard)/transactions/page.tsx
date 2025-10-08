@@ -10,7 +10,7 @@ import { DashboardTemplate } from "@/components/templates";
 import {
   PageHeader,
   TransactionList,
-  TransactionForm,
+  TransactionFormNew,
   BatchImageRecognitionDialog,
 } from "@/components/organisms";
 import { TransactionFormValues } from "@/lib/validations/transaction";
@@ -20,14 +20,30 @@ import type { TransactionInput } from "@/types/transaction";
 export default function TransactionsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [batchImageDialogOpen, setBatchImageDialogOpen] = useState(false);
-  const { transactions, loading, createTransaction } = useTransactions();
+  const [editingTransactionId, setEditingTransactionId] = useState<
+    string | null
+  >(null);
+  const {
+    transactions,
+    loading,
+    createTransaction,
+    updateTransaction,
+    deleteTransaction,
+  } = useTransactions();
 
   const handleSubmit = async (data: TransactionFormValues) => {
     try {
       const transactionData = transformFormDataToTransaction(data);
-      await createTransaction(transactionData);
+      if (editingTransactionId) {
+        // 編集モード
+        await updateTransaction(editingTransactionId, transactionData);
+        setEditingTransactionId(null);
+      } else {
+        // 新規作成モード
+        await createTransaction(transactionData);
+      }
     } catch (error) {
-      console.error("トランザクション作成エラー:", error);
+      console.error("トランザクション作成/更新エラー:", error);
       throw error;
     }
   };
@@ -57,6 +73,8 @@ export default function TransactionsPage() {
               }
             : undefined,
           memo: data.memo || "",
+          // 元の店舗名を保持（画像認識時）
+          originalMerchantName: data.ai?.originalMerchantName,
         };
         const transactionData = transformFormDataToTransaction(formData);
         await createTransaction(transactionData);
@@ -66,6 +84,63 @@ export default function TransactionsPage() {
       throw error;
     }
   };
+
+  // 削除処理
+  const handleDelete = async (id: string) => {
+    await deleteTransaction(id);
+  };
+
+  // 編集処理
+  const handleEdit = (id: string) => {
+    setEditingTransactionId(id);
+    setFormOpen(true);
+  };
+
+  // フォームを閉じるときに編集モードをリセット
+  const handleFormClose = (open: boolean) => {
+    setFormOpen(open);
+    if (!open) {
+      setEditingTransactionId(null);
+    }
+  };
+
+  // 編集中の取引データを取得
+  const editingTransaction = editingTransactionId
+    ? transactions.find((t) => t.id === editingTransactionId)
+    : null;
+
+  // フォームのデフォルト値
+  const formDefaultValues: Partial<TransactionFormValues> | undefined =
+    editingTransaction
+      ? {
+          date: editingTransaction.date,
+          amount: editingTransaction.amount,
+          categoryMain: editingTransaction.category.main,
+          categorySub: editingTransaction.category.sub,
+          description: editingTransaction.description,
+          paymentMethod: editingTransaction.paymentMethod,
+          isIncome: editingTransaction.isIncome,
+          hasAdvance: !!editingTransaction.advance,
+          advance: editingTransaction.advance
+            ? {
+                type: editingTransaction.advance.type,
+                totalAmount: editingTransaction.advance.totalAmount,
+                advanceAmount: editingTransaction.advance.advanceAmount,
+                personalAmount: editingTransaction.advance.personalAmount,
+                memo: editingTransaction.advance.memo || "",
+              }
+            : undefined,
+          // 画像から読み取った場合は元の店舗名をメモ欄に表示
+          memo:
+            editingTransaction.imageUrl &&
+            editingTransaction.ai?.originalMerchantName
+              ? `元の店舗名: ${editingTransaction.ai.originalMerchantName}`
+              : editingTransaction.memo || "",
+          // 既存のAI情報を保持
+          originalMerchantName: editingTransaction.ai?.originalMerchantName,
+          userKeyword: editingTransaction.ai?.userKeyword,
+        }
+      : undefined;
 
   return (
     <DashboardTemplate>
@@ -86,13 +161,17 @@ export default function TransactionsPage() {
         showPaymentMethod
         dateFormat="yyyy年M月d日(E)"
         onAddClick={() => setFormOpen(true)}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
       />
 
-      <TransactionForm
+      <TransactionFormNew
+        key={editingTransactionId || "new"}
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={handleFormClose}
         onSubmit={handleSubmit}
-        mode="create"
+        mode={editingTransactionId ? "edit" : "create"}
+        defaultValues={formDefaultValues}
       />
 
       <BatchImageRecognitionDialog
