@@ -22,7 +22,7 @@ import {
 import { Trash2, Pencil } from "lucide-react";
 import { getPaymentMethodLabel } from "@/constants/paymentMethods";
 import { AdvanceInfo } from "@/types/advance";
-import { PaymentMethodValue } from "@/types/transaction";
+import { PaymentMethodValue, TransferInfo } from "@/types/transaction";
 
 interface TransactionListItemProps {
   id: string;
@@ -34,6 +34,7 @@ interface TransactionListItemProps {
   categorySub: string;
   paymentMethod?: PaymentMethodValue;
   advance?: AdvanceInfo;
+  transfer?: TransferInfo;
   showBadge?: boolean;
   showPaymentMethod?: boolean;
   dateFormat?: string;
@@ -51,6 +52,7 @@ export function TransactionListItem({
   categorySub,
   paymentMethod,
   advance,
+  transfer,
   showBadge = false,
   showPaymentMethod = false,
   dateFormat = "M/d(E)",
@@ -62,6 +64,7 @@ export function TransactionListItem({
   const isAdvanceRecovery = isIncome && categorySub === "立替金回収";
   const isBalanceAdjustment =
     categoryMain === "その他" && categorySub === "残高確認/修正";
+  const isTransfer = !!transfer;
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -121,6 +124,14 @@ export function TransactionListItem({
                 {advance.type === "friend" ? "友人立替" : "親負担"}
               </Badge>
             )}
+            {isTransfer && transfer && (
+              <Badge
+                variant="outline"
+                className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-indigo-600 border-indigo-600 bg-indigo-50"
+              >
+                振替
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-700 flex-wrap font-medium">
             <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
@@ -138,6 +149,12 @@ export function TransactionListItem({
               <span className="px-2.5 py-0.5 rounded-full bg-blue-50 backdrop-blur-md border border-blue-200 text-blue-700">
                 立替: ¥{advance.advanceAmount.toLocaleString()} / 自己: ¥
                 {advance.personalAmount.toLocaleString()}
+              </span>
+            )}
+            {isTransfer && transfer && (
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 backdrop-blur-md border border-indigo-200 text-indigo-700 font-semibold">
+                {getPaymentMethodLabel(transfer.from)} →{" "}
+                {getPaymentMethodLabel(transfer.to)}
               </span>
             )}
           </div>

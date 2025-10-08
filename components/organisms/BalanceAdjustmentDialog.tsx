@@ -89,7 +89,7 @@ export function BalanceAdjustmentDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>残高確認/修正</DialogTitle>
+          <DialogTitle>残高確認(修正)</DialogTitle>
           <DialogDescription>
             {getPaymentMethodLabel(paymentMethod)}の実際の残高を入力してください
           </DialogDescription>

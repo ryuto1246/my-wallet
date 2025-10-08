@@ -35,6 +35,7 @@ import {
   PeriodType,
   calculatePaymentMethodBalances,
   mergeTransactionsAndAdjustments,
+  isTransferTransaction,
 } from "@/lib/helpers";
 import { calculateActualExpense } from "@/lib/helpers/advance";
 import type { TransactionInput, PaymentMethodValue } from "@/types/transaction";
@@ -84,7 +85,11 @@ export default function DashboardPage() {
 
     const periodTransactions = transactions.filter((t) => {
       const txDate = new Date(t.date);
-      return txDate >= dateRange.start && txDate <= dateRange.end;
+      return (
+        txDate >= dateRange.start &&
+        txDate <= dateRange.end &&
+        !isTransferTransaction(t)
+      );
     });
 
     // 立替金回収の金額を計算
@@ -117,7 +122,10 @@ export default function DashboardPage() {
     const periodTransactions = transactions.filter((t) => {
       const txDate = new Date(t.date);
       return (
-        txDate >= dateRange.start && txDate <= dateRange.end && !t.isIncome
+        txDate >= dateRange.start &&
+        txDate <= dateRange.end &&
+        !t.isIncome &&
+        !isTransferTransaction(t)
       );
     });
 

@@ -96,6 +96,7 @@ export function TransactionList({
                 categorySub={transaction.category.sub}
                 paymentMethod={transaction.paymentMethod}
                 advance={transaction.advance}
+                transfer={transaction.transfer}
                 showBadge={showBadge}
                 showPaymentMethod={showPaymentMethod}
                 dateFormat={dateFormat}

@@ -4,13 +4,14 @@
 
 import { Transaction } from '@/types/transaction';
 import { AdvanceInfo, AdvanceBalance } from '@/types/advance';
+import { isTransferTransaction } from './transaction';
 
 /**
  * 立替金残高を計算
  */
 export function calculateAdvanceBalance(transactions: Transaction[]): AdvanceBalance {
   const advances = transactions.filter(
-    (t) => t.advance && !t.isIncome
+    (t) => t.advance && !t.isIncome && !isTransferTransaction(t)
   );
 
   const totalAdvanced = advances.reduce((sum, t) => {
@@ -41,7 +42,7 @@ export function calculateAdvanceBalance(transactions: Transaction[]): AdvanceBal
  * 友人立替・親負担: 立替金額のみ除外、自己負担額はカウント
  */
 export function getActualExpenseAmount(transaction: Transaction): number {
-  if (transaction.isIncome) {
+  if (transaction.isIncome || isTransferTransaction(transaction)) {
     return 0;
   }
 
@@ -123,7 +124,7 @@ export function formatAdvanceInfo(advance: AdvanceInfo): string {
  */
 export function getUnrecoveredAdvances(transactions: Transaction[]): Transaction[] {
   return transactions.filter(
-    (t) => t.advance && !t.advance.isRecovered && !t.isIncome
+    (t) => t.advance && !t.advance.isRecovered && !t.isIncome && !isTransferTransaction(t)
   );
 }
 

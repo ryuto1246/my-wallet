@@ -7,6 +7,21 @@ import { TransactionFormValues } from "@/lib/validations/transaction";
 import type { BalanceAdjustment } from "@/types";
 
 /**
+ * 振替かどうかを判定
+ */
+export function isTransferTransaction(transaction: Transaction): boolean {
+  // transactionTypeまたはtransferプロパティで判定
+  if (transaction.transactionType === 'transfer' || transaction.transfer) {
+    return true;
+  }
+  // カテゴリで判定（既存データ対応）
+  if (transaction.category.main === '振替' || transaction.category.sub === '口座間振替') {
+    return true;
+  }
+  return false;
+}
+
+/**
  * 月次統計を計算
  */
 export interface MonthlyStats {
@@ -27,7 +42,7 @@ export function calculateMonthlyStats(
   const monthlyTransactions = transactions.filter((t) => {
     const txDate = new Date(t.date);
     return (
-      txDate.getMonth() === targetMonth && txDate.getFullYear() === targetYear
+      txDate.getMonth() === targetMonth && txDate.getFullYear() === targetYear && !isTransferTransaction(t)
     );
   });
 
@@ -71,9 +86,9 @@ export function convertAdjustmentToTransaction(
     amount: Math.abs(adjustment.difference),
     category: {
       main: "その他",
-      sub: "残高確認/修正",
+      sub: "残高確認(修正)",
     },
-    description: adjustment.memo || "残高確認/修正",
+    description: adjustment.memo || "残高確認(修正)",
     paymentMethod: adjustment.paymentMethod,
     isIncome,
     memo: `期待残高: ¥${adjustment.expectedBalance.toLocaleString()}, 実際の残高: ¥${adjustment.actualBalance.toLocaleString()}`,
@@ -296,7 +311,7 @@ export function calculateCategoryTotals(
   const categoryMap = new Map<string, { total: number; count: number }>();
 
   transactions
-    .filter((t) => !t.isIncome)
+    .filter((t) => !t.isIncome && !isTransferTransaction(t))
     .forEach((t) => {
       const categoryKey = `${t.category.main}/${t.category.sub}`;
       const current = categoryMap.get(categoryKey) || { total: 0, count: 0 };
@@ -333,6 +348,8 @@ export function calculateDailyTotals(
   >();
 
   transactions.forEach((t) => {
+    if (isTransferTransaction(t)) return;
+
     const dateKey = new Date(t.date).toISOString().split("T")[0];
     const current = dailyMap.get(dateKey) || { income: 0, expense: 0 };
 
@@ -365,7 +382,7 @@ export function calculatePeriodStats(
 ): MonthlyStats {
   const periodTransactions = transactions.filter((t) => {
     const txDate = new Date(t.date);
-    return txDate >= startDate && txDate <= endDate;
+    return txDate >= startDate && txDate <= endDate && !isTransferTransaction(t);
   });
 
   const income = periodTransactions
@@ -421,10 +438,16 @@ export function calculatePaymentMethodBalances(
     console.log('📊 Latest adjustments map:', Array.from(latestAdjustmentMap.entries()));
   }
 
-  // 各決済手段の残高を計算
+  // 各決済手段の残高を計算（振替も考慮してマップを初期化）
   transactions.forEach((t) => {
     if (!balanceMap.has(t.paymentMethod)) {
       balanceMap.set(t.paymentMethod, { income: 0, expense: 0, balance: 0 });
+    }
+    // 振替の場合、振替先も初期化
+    if (isTransferTransaction(t) && t.transfer?.to) {
+      if (!balanceMap.has(t.transfer.to)) {
+        balanceMap.set(t.transfer.to, { income: 0, expense: 0, balance: 0 });
+      }
     }
   });
 
@@ -440,19 +463,34 @@ export function calculatePaymentMethodBalances(
     const latestAdjustment = latestAdjustmentMap.get(method);
     
     if (latestAdjustment) {
-      // 最終確認以降の取引のみを集計
+      // 最終確認以降の取引のみを集計（振替元/先も含む）
       const transactionsAfterAdjustment = transactions.filter((t) => {
-        return t.paymentMethod === method && new Date(t.date) > new Date(latestAdjustment.date);
+        const isAfterAdjustment = new Date(t.date) > new Date(latestAdjustment.date);
+        const isRelatedToMethod = t.paymentMethod === method || 
+                                   (t.transfer && (t.transfer.from === method || t.transfer.to === method));
+        return isRelatedToMethod && isAfterAdjustment;
       });
 
       let income = 0;
       let expense = 0;
 
       transactionsAfterAdjustment.forEach((t) => {
-        if (t.isIncome) {
-          income += t.amount;
+        if (isTransferTransaction(t) && t.transfer) {
+          // 振替の場合
+          if (t.transfer.from === method) {
+            // 振替元：支出として扱う（残高計算のみ、統計には含めない）
+            expense += t.amount;
+          } else if (t.transfer.to === method) {
+            // 振替先：収入として扱う（残高計算のみ、統計には含めない）
+            income += t.amount;
+          }
         } else {
-          expense += t.amount;
+          // 通常の取引
+          if (t.isIncome) {
+            income += t.amount;
+          } else {
+            expense += t.amount;
+          }
         }
       });
 
@@ -467,16 +505,32 @@ export function calculatePaymentMethodBalances(
       });
     } else {
       // 確認がない場合は全期間の収支
-      const methodTransactions = transactions.filter((t) => t.paymentMethod === method);
+      const methodTransactions = transactions.filter((t) => {
+        // この決済手段に関連する取引（通常の取引 + 振替元/先）
+        return t.paymentMethod === method || 
+               (t.transfer && (t.transfer.from === method || t.transfer.to === method));
+      });
       
       let income = 0;
       let expense = 0;
 
       methodTransactions.forEach((t) => {
-        if (t.isIncome) {
-          income += t.amount;
+        if (isTransferTransaction(t) && t.transfer) {
+          // 振替の場合
+          if (t.transfer.from === method) {
+            // 振替元：支出として扱う（残高計算のみ）
+            expense += t.amount;
+          } else if (t.transfer.to === method) {
+            // 振替先：収入として扱う（残高計算のみ）
+            income += t.amount;
+          }
         } else {
-          expense += t.amount;
+          // 通常の取引
+          if (t.isIncome) {
+            income += t.amount;
+          } else {
+            expense += t.amount;
+          }
         }
       });
 
