@@ -376,7 +376,7 @@ export function TransactionFormNew({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="md:max-w-2xl">
         <VisuallyHidden>
           <DialogTitle>新規取引を追加</DialogTitle>
           <DialogDescription>収支情報を入力してください</DialogDescription>
@@ -384,11 +384,11 @@ export function TransactionFormNew({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
-            className="space-y-6"
+            className="space-y-3 md:space-y-6"
           >
             {/* 画像アップロードエリア */}
             {showImageUpload && (
-              <div className="space-y-4 p-6 border rounded-lg bg-muted/30">
+              <div className="space-y-2 p-3 md:p-6 border rounded-lg bg-muted/30">
                 <h3 className="text-sm font-medium">
                   決済アプリのスクリーンショットから自動入力
                 </h3>
@@ -434,13 +434,13 @@ export function TransactionFormNew({
 
             {/* AIサジェスチョン表示 */}
             {aiLoading && (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-2 md:py-4 text-gray-500">
                 AIが提案を考えています...
               </div>
             )}
 
             {quotaExceeded && (
-              <div className="text-center py-4">
+              <div className="text-center py-2 md:py-4">
                 <div className="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
                   {aiError}
                 </div>
@@ -475,7 +475,7 @@ export function TransactionFormNew({
             )}
 
             {aiError && !quotaExceeded && (
-              <div className="text-center py-4">
+              <div className="text-center py-2 md:py-4">
                 <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
                   {aiError}
                 </div>
@@ -483,17 +483,21 @@ export function TransactionFormNew({
             )}
 
             {/* 送信ボタン */}
-            <div className="flex gap-4">
+            <div className="flex gap-2 md:gap-4 pt-1">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 bg-white text-gray-900 hover:text-gray-900"
+                className="flex-1 bg-white text-gray-900 hover:text-gray-900 h-10 md:h-10 text-sm"
                 onClick={() => onOpenChange(false)}
                 disabled={loading}
               >
                 キャンセル
               </Button>
-              <Button type="submit" className="flex-1" disabled={loading}>
+              <Button
+                type="submit"
+                className="flex-1 h-10 md:h-10 text-sm"
+                disabled={loading}
+              >
                 {loading ? "保存中..." : mode === "create" ? "追加" : "更新"}
               </Button>
             </div>

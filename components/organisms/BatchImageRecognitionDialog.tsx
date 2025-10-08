@@ -337,7 +337,7 @@ export function BatchImageRecognitionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="md:max-w-4xl">
         <DialogTitle>取引リストから一括入力</DialogTitle>
         <DialogDescription>
           決済アプリの取引リスト画像から複数の取引を一度に認識します

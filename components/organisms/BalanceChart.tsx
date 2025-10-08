@@ -71,7 +71,7 @@ export function BalanceChart({
             {/* 総資産 */}
             <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-1 mb-1">
               <span className="text-xs font-bold text-black">総資産</span>
-              <span className="text-xs font-black text-blue-600">
+              <span className="text-xs font-black text-black">
                 {formatCurrency(
                   payload.find((p) => p.dataKey === "totalAssets")?.value || 0
                 )}
@@ -121,26 +121,32 @@ export function BalanceChart({
   // カスタム凡例
   const CustomLegend = useMemo(() => {
     const LegendComponent = () => (
-      <div className="flex flex-wrap justify-center gap-x-2 sm:gap-x-4 gap-y-1 sm:gap-y-2 mt-3 px-2">
-        {/* 総資産 */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          <div className="w-6 sm:w-8 h-0.5 bg-blue-600" />
-          <span className="text-xs font-bold text-black whitespace-nowrap">
-            総資産
-          </span>
-        </div>
-        {/* 各決済手段 */}
-        {paymentMethods.map(({ key, label, color }) => (
-          <div key={key} className="flex items-center gap-1 sm:gap-2">
-            <div
-              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0"
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-xs font-medium text-black whitespace-nowrap">
-              {label}
+      <div className="mt-3 mb-6 px-2">
+        {/* スマホではスクロール可能、デスクトップでは折り返し */}
+        <div className="flex overflow-x-auto gap-x-3 gap-y-1 sm:flex-wrap sm:justify-center sm:gap-x-2 sm:gap-x-4 sm:gap-y-2 scrollbar-hide">
+          {/* 総資産 */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            <div className="w-6 sm:w-8 h-0.5 bg-black" />
+            <span className="text-xs font-bold text-black whitespace-nowrap">
+              総資産
             </span>
           </div>
-        ))}
+          {/* 各決済手段 */}
+          {paymentMethods.map(({ key, label, color }) => (
+            <div
+              key={key}
+              className="flex items-center gap-1 sm:gap-2 flex-shrink-0"
+            >
+              <div
+                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-xs font-medium text-black whitespace-nowrap">
+                {label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     );
     LegendComponent.displayName = "CustomLegend";
@@ -173,13 +179,33 @@ export function BalanceChart({
       </div>
 
       {/* グラフ */}
-      <GlassCard className="p-4">
+      <GlassCard className="p-2 sm:p-4">
         <div className="w-full h-[280px] sm:h-[350px]">
           <ResponsiveContainer>
-            <ComposedChart data={chartData}>
+            <ComposedChart
+              data={chartData}
+              margin={{ top: 25, right: 5, left: -5, bottom: -15 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="date" />
-              <YAxis tickFormatter={formatYAxis} />
+              <XAxis
+                dataKey="date"
+                interval="preserveStartEnd"
+                angle={-45}
+                textAnchor="end"
+                height={60}
+                fontSize={12}
+                tickMargin={5}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tickFormatter={formatYAxis}
+                width={35}
+                tickMargin={2}
+                axisLine={false}
+                tickLine={false}
+                fontSize={10}
+              />
               <Tooltip content={<CustomTooltip />} />
               <Legend content={<CustomLegend />} />
 
@@ -212,7 +238,7 @@ export function BalanceChart({
               <Line
                 type="monotone"
                 dataKey="totalAssets"
-                stroke="#2563EB"
+                stroke="#000000"
                 strokeWidth={3}
                 dot={false}
                 isAnimationActive={false}

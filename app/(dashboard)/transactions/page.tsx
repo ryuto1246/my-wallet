@@ -39,6 +39,7 @@ export default function TransactionsPage() {
   const [editingAdjustmentId, setEditingAdjustmentId] = useState<string | null>(
     null
   );
+  const [adjustmentDate, setAdjustmentDate] = useState<Date>(new Date());
   const {
     transactions,
     loading,
@@ -56,11 +57,6 @@ export default function TransactionsPage() {
   // 取引と残高調整を統合
   const allTransactions = useMemo(() => {
     return mergeTransactionsAndAdjustments(transactions, adjustments);
-  }, [transactions, adjustments]);
-
-  // 決済手段別の残高を計算（編集モード用）
-  const paymentMethodBalances = useMemo(() => {
-    return calculatePaymentMethodBalances(transactions, adjustments);
   }, [transactions, adjustments]);
 
   const handleSubmit = async (data: TransactionFormValues) => {
@@ -131,29 +127,6 @@ export default function TransactionsPage() {
     }
   };
 
-  // 編集処理
-  const handleEdit = (id: string) => {
-    // 残高確認/修正の場合
-    if (id.startsWith("adjustment-")) {
-      const adjustmentId = id.replace("adjustment-", "");
-      setEditingAdjustmentId(adjustmentId);
-      setBalanceAdjustmentOpen(true);
-      return;
-    }
-
-    // 振替の場合
-    const transaction = transactions.find((t) => t.id === id);
-    if (transaction?.transfer) {
-      setEditingTransactionId(id);
-      setTransferDialogOpen(true);
-      return;
-    }
-
-    // 通常の取引
-    setEditingTransactionId(id);
-    setFormOpen(true);
-  };
-
   // フォームを閉じるときに編集モードをリセット
   const handleFormClose = (open: boolean) => {
     setFormOpen(open);
@@ -175,7 +148,35 @@ export default function TransactionsPage() {
     setBalanceAdjustmentOpen(open);
     if (!open) {
       setEditingAdjustmentId(null);
+      setAdjustmentDate(new Date());
     }
+  };
+
+  // 編集開始時に日付を設定
+  const handleEdit = (id: string) => {
+    // 残高確認/修正の場合
+    if (id.startsWith("adjustment-")) {
+      const adjustmentId = id.replace("adjustment-", "");
+      const adjustment = adjustments.find((a) => a.id === adjustmentId);
+      if (adjustment) {
+        setAdjustmentDate(adjustment.date);
+      }
+      setEditingAdjustmentId(adjustmentId);
+      setBalanceAdjustmentOpen(true);
+      return;
+    }
+
+    // 振替の場合
+    const transaction = transactions.find((t) => t.id === id);
+    if (transaction?.transfer) {
+      setEditingTransactionId(id);
+      setTransferDialogOpen(true);
+      return;
+    }
+
+    // 通常の取引
+    setEditingTransactionId(id);
+    setFormOpen(true);
   };
 
   // 編集中の取引データを取得
@@ -227,6 +228,7 @@ export default function TransactionsPage() {
 
   // 残高確認/修正
   const handleBalanceAdjustment = async (
+    date: Date,
     actualBalance: number,
     memo: string
   ) => {
@@ -243,14 +245,20 @@ export default function TransactionsPage() {
       // 既存の調整を削除して新しい調整を作成
       await deleteBalanceAdjustment(editingAdjustmentId!);
 
-      const balance = paymentMethodBalances.find(
+      // 指定日時点での残高を計算
+      const balances = calculatePaymentMethodBalances(
+        transactions,
+        adjustments.filter((a) => a.id !== editingAdjustmentId),
+        date
+      );
+      const balance = balances.find(
         (b) => b.paymentMethod === editingAdjustment.paymentMethod
       );
 
       await createBalanceAdjustment(
         user.id,
         {
-          date: editingAdjustment.date,
+          date,
           paymentMethod: editingAdjustment.paymentMethod,
           actualBalance,
           memo,
@@ -318,11 +326,38 @@ export default function TransactionsPage() {
     : null;
 
   const adjustmentPaymentMethod = editingAdjustment?.paymentMethod || null;
-  const adjustmentExpectedBalance = editingAdjustment
-    ? paymentMethodBalances.find(
-        (b) => b.paymentMethod === editingAdjustment.paymentMethod
-      )?.balance || 0
-    : 0;
+
+  // 指定日時点での期待残高を計算
+  const adjustmentExpectedBalance = useMemo(() => {
+    if (!editingAdjustment) return 0;
+
+    // 日付が無効な場合は現在の日付を使用
+    const validDate =
+      adjustmentDate && !isNaN(adjustmentDate.getTime())
+        ? adjustmentDate
+        : new Date();
+
+    const balances = calculatePaymentMethodBalances(
+      transactions,
+      adjustments.filter((a) => a.id !== editingAdjustmentId),
+      validDate
+    );
+    return (
+      balances.find((b) => b.paymentMethod === editingAdjustment.paymentMethod)
+        ?.balance || 0
+    );
+  }, [
+    editingAdjustment,
+    transactions,
+    adjustments,
+    editingAdjustmentId,
+    adjustmentDate,
+  ]);
+
+  // 日付変更時の処理
+  const handleAdjustmentDateChange = (date: Date) => {
+    setAdjustmentDate(date);
+  };
 
   return (
     <DashboardTemplate>
@@ -355,7 +390,7 @@ export default function TransactionsPage() {
       />
 
       <TransactionFormNew
-        key={editingTransactionId || "new"}
+        key={`transaction-${editingTransactionId || "new"}`}
         open={formOpen}
         onOpenChange={handleFormClose}
         onSubmit={handleSubmit}
@@ -370,7 +405,7 @@ export default function TransactionsPage() {
       />
 
       <TransferFormDialog
-        key={editingTransactionId || "new-transfer"}
+        key={`transfer-${editingTransactionId || "new"}`}
         open={transferDialogOpen}
         onOpenChange={handleTransferDialogClose}
         onSubmit={handleTransferSubmit}
@@ -379,12 +414,13 @@ export default function TransactionsPage() {
       />
 
       <BalanceAdjustmentDialog
-        key={editingAdjustmentId || "new-adjustment"}
+        key={`adjustment-${editingAdjustmentId || "new"}`}
         open={balanceAdjustmentOpen}
         onOpenChange={handleBalanceAdjustmentClose}
         paymentMethod={adjustmentPaymentMethod}
         expectedBalance={adjustmentExpectedBalance}
         onSubmit={handleBalanceAdjustment}
+        onDateChange={handleAdjustmentDateChange}
       />
     </DashboardTemplate>
   );

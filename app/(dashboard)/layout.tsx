@@ -8,8 +8,16 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/firebase/auth";
 import Link from "next/link";
+import { Menu, LayoutDashboard, List, LogOut } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -50,7 +58,7 @@ export default function DashboardLayout({
     <div className="min-h-screen">
       {/* ヘッダー - Liquid Glassスタイル */}
       <header className="bg-white/70 backdrop-blur-2xl border-b-2 border-white/40 sticky top-0 z-50 shadow-glass-lg">
-        <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-5 flex items-center justify-between">
+        <div className="container mx-auto px-5 md:px-6 lg:px-8 py-3 sm:py-4 md:py-5 flex items-center justify-between">
           <div className="flex items-center space-x-3 sm:space-x-4 md:space-x-8">
             <Link href="/dashboard" className="group">
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -64,7 +72,9 @@ export default function DashboardLayout({
                 </h1>
               </div>
             </Link>
-            <nav className="hidden sm:flex space-x-2 md:space-x-3">
+
+            {/* デスクトップ用ナビゲーション */}
+            <nav className="hidden md:flex space-x-2 md:space-x-3">
               <Link
                 href="/dashboard"
                 className="px-3 md:px-5 py-1.5 md:py-2.5 rounded-lg md:rounded-xl text-sm md:text-base text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass"
@@ -79,23 +89,71 @@ export default function DashboardLayout({
               </Link>
             </nav>
           </div>
-          <div className="flex items-center">
+
+          <div className="flex items-center gap-2">
+            {/* デスクトップ用ログアウトボタン */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="rounded-lg md:rounded-xl border-2 border-white/50 bg-white/60 
+              className="hidden md:flex rounded-lg md:rounded-xl border-2 border-white/50 bg-white/60 
                          text-gray-900 hover:bg-white/75
                          backdrop-blur-md shadow-glass transition-all hover:scale-105 font-semibold text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2"
             >
               ログアウト
             </Button>
+
+            {/* スマホ用ハンバーガーメニュー */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="md:hidden rounded-lg border-2 border-white/50 bg-white/60 
+                             text-gray-900 hover:bg-white/75
+                             backdrop-blur-md shadow-glass transition-all hover:scale-105 p-2"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-48 bg-white/95 backdrop-blur-xl border-2 border-white/50 shadow-glass"
+              >
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>ダッシュボード</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/transactions"
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <List className="h-4 w-4" />
+                    <span>取引一覧</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 cursor-pointer text-red-600"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>ログアウト</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
 
       {/* メインコンテンツ */}
-      <main className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 lg:py-10">
+      <main className="container mx-auto px-5 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 lg:py-10">
         {children}
       </main>
     </div>

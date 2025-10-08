@@ -72,7 +72,7 @@ export function TransactionAmountInput({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-3 md:p-8">
       {/* 装飾的な背景要素 */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-purple-200 rounded-full filter blur-3xl opacity-20 animate-pulse"></div>
       <div
@@ -80,11 +80,11 @@ export function TransactionAmountInput({
         style={{ animationDelay: "1s" }}
       ></div>
 
-      <div className="relative space-y-8">
+      <div className="relative space-y-3 md:space-y-8">
         {/* 日付と決済手段 - 上部にコンパクトに */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <CalendarIcon className="h-5 w-5 text-gray-500" />
+        <div className="flex items-center justify-between gap-1 md:gap-4">
+          <div className="flex items-center gap-1 md:gap-3">
+            <CalendarIcon className="h-3 w-3 md:h-5 md:w-5 text-gray-500" />
             <FormField
               control={control}
               name="date"
@@ -93,7 +93,7 @@ export function TransactionAmountInput({
                   <FormControl>
                     <input
                       type="date"
-                      className="bg-white/60 backdrop-blur-sm border-0 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                      className="bg-white/60 backdrop-blur-sm border-0 rounded-lg md:rounded-xl px-1.5 md:px-3 py-1 md:py-2 text-xs md:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
                       value={
                         field.value ? format(field.value, "yyyy-MM-dd") : ""
                       }
@@ -109,8 +109,8 @@ export function TransactionAmountInput({
             />
           </div>
           <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-3">
-              <CreditCard className="h-5 w-5 text-gray-500" />
+            <div className="flex items-center gap-1 md:gap-3">
+              <CreditCard className="h-3 w-3 md:h-5 md:w-5 text-gray-500" />
               <FormField
                 control={control}
                 name="paymentMethod"
@@ -118,7 +118,7 @@ export function TransactionAmountInput({
                   <FormItem>
                     <FormControl>
                       <select
-                        className={`bg-white/60 backdrop-blur-sm border-0 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 transition-all cursor-pointer ${
+                        className={`bg-white/60 backdrop-blur-sm border-0 rounded-lg md:rounded-xl px-1.5 md:px-3 py-1 md:py-2 text-xs md:text-sm font-medium focus:outline-none focus:ring-2 transition-all cursor-pointer ${
                           fieldState.error
                             ? "text-red-600 focus:ring-red-400 ring-2 ring-red-300"
                             : "text-gray-700 focus:ring-purple-400"
@@ -150,20 +150,20 @@ export function TransactionAmountInput({
             <FormItem>
               <FormControl>
                 <div className="text-center">
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="text-4xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500 self-center">
+                  <div className="flex items-center justify-center gap-1 md:gap-3">
+                    <span className="text-2xl md:text-4xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500 self-center">
                       ¥
                     </span>
                     <input
                       type="text"
                       placeholder="0"
-                      className="font-bold text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none rounded-none px-2 placeholder:text-gray-300 text-gray-800 hover:text-indigo-600 focus:text-purple-600 transition-colors"
+                      className="font-bold text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none rounded-none px-1 md:px-2 placeholder:text-gray-300 text-gray-800 hover:text-indigo-600 focus:text-purple-600 transition-colors"
                       style={{
-                        fontSize: "4.5rem",
+                        fontSize: "2.5rem",
                         lineHeight: "1.1",
                         width: "auto",
-                        minWidth: "120px",
-                        maxWidth: "400px",
+                        minWidth: "80px",
+                        maxWidth: "250px",
                       }}
                       value={
                         field.value ? field.value.toLocaleString("ja-JP") : ""
@@ -189,8 +189,8 @@ export function TransactionAmountInput({
           <input
             type="text"
             placeholder="何に使いましたか？"
-            className="text-center border-0 bg-transparent focus:outline-none rounded-none px-6 font-medium placeholder:text-gray-400 text-gray-800 hover:text-indigo-600 focus:text-purple-600 transition-colors w-full"
-            style={{ fontSize: "1.5rem", lineHeight: "1.3" }}
+            className="text-center border-0 bg-transparent focus:outline-none rounded-none px-2 md:px-6 font-medium placeholder:text-gray-400 text-gray-800 hover:text-indigo-600 focus:text-purple-600 transition-colors w-full"
+            style={{ fontSize: "1rem", lineHeight: "1.3" }}
             value={keyword}
             onChange={(e) => onKeywordChange(e.target.value)}
           />
@@ -198,47 +198,47 @@ export function TransactionAmountInput({
 
         {/* 支払いタイプ選択 */}
         <div className="flex justify-center">
-          <div className="inline-flex gap-2 bg-white/60 backdrop-blur-sm rounded-xl p-2">
+          <div className="inline-flex gap-0.5 md:gap-2 bg-white/60 backdrop-blur-sm rounded-lg md:rounded-xl p-1 md:p-2">
             <button
               type="button"
               onClick={handleSelfClick}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
                 !advanceType
                   ? "bg-gray-800 text-white shadow-md"
                   : "bg-transparent text-gray-600 hover:bg-gray-100"
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <span className="text-base">💰</span>
-                <span>自分</span>
+              <div className="flex items-center gap-0.5 md:gap-1.5">
+                <span className="text-xs md:text-base">💰</span>
+                <span className="hidden sm:inline">自分</span>
               </div>
             </button>
             <button
               type="button"
               onClick={() => handleAdvanceClick("parent")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
                 advanceType === "parent"
                   ? "bg-green-500 text-white shadow-md"
                   : "bg-transparent text-gray-600 hover:bg-gray-100"
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <span className="text-base">👨‍👩‍👧</span>
-                <span>親</span>
+              <div className="flex items-center gap-0.5 md:gap-1.5">
+                <span className="text-xs md:text-base">👨‍👩‍👧</span>
+                <span className="hidden sm:inline">親</span>
               </div>
             </button>
             <button
               type="button"
               onClick={() => handleAdvanceClick("friend")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
                 advanceType === "friend"
                   ? "bg-blue-500 text-white shadow-md"
                   : "bg-transparent text-gray-600 hover:bg-gray-100"
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <span className="text-base">👥</span>
-                <span>友達</span>
+              <div className="flex items-center gap-0.5 md:gap-1.5">
+                <span className="text-xs md:text-base">👥</span>
+                <span className="hidden sm:inline">友達</span>
               </div>
             </button>
           </div>

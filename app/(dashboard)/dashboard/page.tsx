@@ -59,6 +59,7 @@ export default function DashboardPage() {
     useState<PaymentMethodValue | null>(null);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<ChartPeriodType>("month");
+  const [balanceAsOfDate, setBalanceAsOfDate] = useState<Date>(new Date());
 
   // 期間に応じた日付範囲を取得
   const dateRange = useMemo(() => {
@@ -156,19 +157,27 @@ export default function DashboardPage() {
     return undefined;
   }, [allTransactions, dateRange]);
 
-  // 決済手段別の残高を計算（最終確認基準）
+  // 決済手段別の残高を計算（最終確認基準 + 指定日時点）
   const paymentMethodBalances = useMemo(() => {
+    // 日付が無効な場合は現在の日付を使用
+    const validDate =
+      balanceAsOfDate && !isNaN(balanceAsOfDate.getTime())
+        ? balanceAsOfDate
+        : new Date();
+
     console.log("💰 Calculating payment method balances:", {
       transactionsCount: allTransactions.length,
       adjustmentsCount: adjustments.length,
+      asOfDate: validDate.toISOString(),
     });
     const balances = calculatePaymentMethodBalances(
       allTransactions,
-      adjustments
+      adjustments,
+      validDate
     );
     console.log("✅ Payment method balances:", balances);
     return balances;
-  }, [allTransactions, adjustments]);
+  }, [allTransactions, adjustments, balanceAsOfDate]);
 
   // 選択された決済手段の期待残高を取得
   const selectedPaymentMethodBalance = useMemo(() => {
@@ -232,6 +241,7 @@ export default function DashboardPage() {
 
   // 残高確認/修正
   const handleBalanceAdjustment = async (
+    date: Date,
     actualBalance: number,
     memo: string
   ) => {
@@ -241,7 +251,7 @@ export default function DashboardPage() {
       await createBalanceAdjustment(
         user.id,
         {
-          date: new Date(),
+          date,
           paymentMethod: selectedPaymentMethod,
           actualBalance,
           memo,
@@ -256,9 +266,16 @@ export default function DashboardPage() {
     }
   };
 
+  // 日付変更時に残高を再計算
+  const handleBalanceDateChange = (date: Date) => {
+    setBalanceAsOfDate(date);
+  };
+
   // 決済手段カードクリック時
   const handlePaymentMethodClick = (paymentMethod: string) => {
     setSelectedPaymentMethod(paymentMethod as PaymentMethodValue);
+    // ダイアログを開く前に日付を今日にリセット
+    setBalanceAsOfDate(new Date());
     setBalanceAdjustmentOpen(true);
   };
 
@@ -359,6 +376,7 @@ export default function DashboardPage() {
         paymentMethod={selectedPaymentMethod}
         expectedBalance={selectedPaymentMethodBalance}
         onSubmit={handleBalanceAdjustment}
+        onDateChange={handleBalanceDateChange}
       />
 
       <TransferFormDialog

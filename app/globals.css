@@ -33,3 +33,13 @@ button:not(:disabled):hover {
 button:not(:disabled):active {
   transform: translateY(0);
 }
+
+/* スクロールバー非表示 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

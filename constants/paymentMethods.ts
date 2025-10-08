@@ -15,42 +15,42 @@ export const PAYMENT_METHODS: PaymentMethodInfo[] = [
   {
     value: PaymentMethod.OLIVE,
     label: '三井住友OLIVE',
-    color: '#00A040',
+    color: '#10B981', // エメラルドグリーン - より鮮やかな緑
   },
   {
     value: PaymentMethod.SMBC_BANK,
     label: '三井住友銀行',
-    color: '#00A040',
+    color: '#06B6D4', // シアン - OLIVEと明確に区別
   },
   {
     value: PaymentMethod.SONY_BANK,
     label: 'ソニー銀行',
-    color: '#0063DB',
+    color: '#3B82F6', // 明るい青 - より視認性が高い
   },
   {
     value: PaymentMethod.D_PAYMENT,
     label: 'd払い',
-    color: '#D32F2F',
+    color: '#EF4444', // 明るい赤 - より鮮やか
   },
   {
     value: PaymentMethod.D_CARD,
     label: 'dカード',
-    color: '#D32F2F',
+    color: '#F97316', // オレンジ - d払いと区別
   },
   {
     value: PaymentMethod.PAYPAY,
     label: 'PayPay',
-    color: '#F53F3F',
+    color: '#DC2626', // PayPayレッド - ブランドカラーに近い
   },
   {
     value: PaymentMethod.CASH,
     label: '現金',
-    color: '#6B7280',
+    color: '#8B5CF6', // パープル - より見やすく
   },
   {
     value: PaymentMethod.OTHER,
     label: 'その他',
-    color: '#9CA3AF',
+    color: '#6B7280', // グレー
   },
 ];
 

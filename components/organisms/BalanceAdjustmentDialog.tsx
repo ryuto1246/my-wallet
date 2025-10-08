@@ -22,6 +22,7 @@ import { formatCurrency } from "@/lib/helpers/format";
 import { ErrorMessage } from "@/components/atoms";
 
 interface BalanceAdjustmentFormData {
+  date: Date;
   actualBalance: number;
   memo: string;
 }
@@ -31,7 +32,8 @@ interface BalanceAdjustmentDialogProps {
   onOpenChange: (open: boolean) => void;
   paymentMethod: PaymentMethodValue | null;
   expectedBalance: number;
-  onSubmit: (actualBalance: number, memo: string) => Promise<void>;
+  onSubmit: (date: Date, actualBalance: number, memo: string) => Promise<void>;
+  onDateChange?: (date: Date) => void;
 }
 
 export function BalanceAdjustmentDialog({
@@ -40,6 +42,7 @@ export function BalanceAdjustmentDialog({
   paymentMethod,
   expectedBalance,
   onSubmit,
+  onDateChange,
 }: BalanceAdjustmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,24 +52,52 @@ export function BalanceAdjustmentDialog({
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<BalanceAdjustmentFormData>({
     defaultValues: {
+      date: new Date(),
       actualBalance: expectedBalance,
       memo: "",
     },
   });
 
+  // ダイアログが開いたときに日付を初期化
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      const today = new Date();
+      setValue("date", today);
+      onDateChange?.(today);
+    }
+    onOpenChange(newOpen);
+  };
+
   const actualBalance = watch("actualBalance");
   const difference = actualBalance ? actualBalance - expectedBalance : 0;
+
+  // 日付変更時に親コンポーネントに通知
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = e.target.value;
+    if (!dateValue) return; // 空の場合は何もしない
+
+    const newDate = new Date(dateValue);
+    if (isNaN(newDate.getTime())) return; // 無効な日付の場合は何もしない
+
+    setValue("date", newDate);
+    onDateChange?.(newDate);
+  };
 
   const handleFormSubmit = async (data: BalanceAdjustmentFormData) => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await onSubmit(data.actualBalance, data.memo);
-      reset();
+      await onSubmit(data.date, data.actualBalance, data.memo);
+      reset({
+        date: new Date(),
+        actualBalance: expectedBalance,
+        memo: "",
+      });
       onOpenChange(false);
     } catch (err) {
       setError(
@@ -78,16 +109,22 @@ export function BalanceAdjustmentDialog({
   };
 
   const handleClose = () => {
-    reset();
+    const today = new Date();
+    reset({
+      date: today,
+      actualBalance: expectedBalance,
+      memo: "",
+    });
     setError(null);
+    onDateChange?.(today);
     onOpenChange(false);
   };
 
   if (!paymentMethod) return null;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="md:max-w-md">
         <DialogHeader>
           <DialogTitle>残高確認(修正)</DialogTitle>
           <DialogDescription>
@@ -96,6 +133,20 @@ export function BalanceAdjustmentDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+          {/* 確認日 */}
+          <div className="space-y-2">
+            <Label htmlFor="date" className="text-sm font-bold text-black">
+              確認日 *
+            </Label>
+            <Input
+              id="date"
+              type="date"
+              defaultValue={new Date().toISOString().split("T")[0]}
+              onChange={handleDateChange}
+              className="font-medium"
+            />
+          </div>
+
           {/* 残高比較 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* システム計算上の残高 */}

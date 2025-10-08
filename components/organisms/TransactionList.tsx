@@ -55,7 +55,11 @@ export function TransactionList({
   onEdit,
 }: TransactionListProps) {
   return (
-    <GlassCard variant="soft" intensity="strong" className="overflow-hidden">
+    <GlassCard
+      variant="soft"
+      intensity="strong"
+      className="overflow-hidden max-w-4xl mx-auto"
+    >
       <div className="p-4 sm:p-5 md:p-6">
         <div className="flex flex-row items-center justify-between pb-3 sm:pb-4 mb-2">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">

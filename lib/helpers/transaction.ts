@@ -434,12 +434,23 @@ export interface PaymentMethodBalance {
 
 export function calculatePaymentMethodBalances(
   transactions: Transaction[],
-  adjustments?: BalanceAdjustment[]
+  adjustments?: BalanceAdjustment[],
+  asOfDate?: Date
 ): PaymentMethodBalance[] {
   console.log('💰 calculatePaymentMethodBalances called:', {
     transactionsCount: transactions.length,
     adjustmentsCount: adjustments?.length || 0,
+    asOfDate: asOfDate?.toISOString(),
   });
+
+  // 指定日がある場合、その日以前のトランザクションと調整のみを使用
+  const filteredTransactions = asOfDate
+    ? transactions.filter((t) => new Date(t.date) <= asOfDate)
+    : transactions;
+  
+  const filteredAdjustments = asOfDate && adjustments
+    ? adjustments.filter((adj) => new Date(adj.date) <= asOfDate)
+    : adjustments;
 
   const balanceMap = new Map<
     string,
@@ -448,8 +459,8 @@ export function calculatePaymentMethodBalances(
 
   // 決済手段ごとの最新調整を取得
   const latestAdjustmentMap = new Map<string, BalanceAdjustment>();
-  if (adjustments) {
-    adjustments.forEach((adj) => {
+  if (filteredAdjustments) {
+    filteredAdjustments.forEach((adj) => {
       const existing = latestAdjustmentMap.get(adj.paymentMethod);
       if (!existing || new Date(adj.date) > new Date(existing.date)) {
         latestAdjustmentMap.set(adj.paymentMethod, adj);
@@ -459,7 +470,7 @@ export function calculatePaymentMethodBalances(
   }
 
   // 各決済手段の残高を計算（振替も考慮してマップを初期化）
-  transactions.forEach((t) => {
+  filteredTransactions.forEach((t) => {
     if (!balanceMap.has(t.paymentMethod)) {
       balanceMap.set(t.paymentMethod, { income: 0, expense: 0, balance: 0 });
     }
@@ -484,7 +495,7 @@ export function calculatePaymentMethodBalances(
     
     if (latestAdjustment) {
       // 最終確認以降の取引のみを集計（振替元/先も含む）
-      const transactionsAfterAdjustment = transactions.filter((t) => {
+      const transactionsAfterAdjustment = filteredTransactions.filter((t) => {
         const isAfterAdjustment = new Date(t.date) > new Date(latestAdjustment.date);
         const isRelatedToMethod = t.paymentMethod === method || 
                                    (t.transfer && (t.transfer.from === method || t.transfer.to === method));
@@ -525,7 +536,7 @@ export function calculatePaymentMethodBalances(
       });
     } else {
       // 確認がない場合は全期間の収支
-      const methodTransactions = transactions.filter((t) => {
+      const methodTransactions = filteredTransactions.filter((t) => {
         // この決済手段に関連する取引（通常の取引 + 振替元/先）
         return t.paymentMethod === method || 
                (t.transfer && (t.transfer.from === method || t.transfer.to === method));

@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +61,11 @@ export function TransactionListItem({
 }: TransactionListItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSwipeOpen, setIsSwipeOpen] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [currentX, setCurrentX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isAdvanceRecovery = isIncome && categorySub === "立替金回収";
   const isTransfer = !!transfer;
 
@@ -79,109 +84,70 @@ export function TransactionListItem({
     }
   };
 
+  // スワイプハンドラー
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!onEdit && !onDelete) return;
+    setStartX(e.touches[0].clientX);
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || (!onEdit && !onDelete)) return;
+    const deltaX = e.touches[0].clientX - startX;
+    setCurrentX(Math.max(-120, Math.min(0, deltaX)));
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+
+    if (currentX < -60) {
+      setIsSwipeOpen(true);
+      setCurrentX(-120);
+    } else {
+      setIsSwipeOpen(false);
+      setCurrentX(0);
+    }
+  };
+
+  // スワイプを閉じる
+  const closeSwipe = () => {
+    setIsSwipeOpen(false);
+    setCurrentX(0);
+  };
+
+  // 他のアイテムがスワイプされたら閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        closeSwipe();
+      }
+    };
+
+    if (isSwipeOpen) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [isSwipeOpen]);
+
   return (
     <>
-      <div
-        className="flex items-center justify-between p-4 md:p-4 rounded-2xl 
-                      bg-white/95 backdrop-blur-xl 
-                      border-2 border-white/60
-                      hover:bg-white
-                      hover:border-white/80
-                      transition-all duration-300 hover:shadow-glass-lg group"
-      >
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1.5">
-            <h3 className="font-bold text-base text-gray-900 group-hover:text-blue-700 transition-colors">
-              {description}
-            </h3>
-            {showBadge && (
-              <Badge
-                variant={
-                  isTransfer ? "secondary" : isIncome ? "default" : "secondary"
-                }
-                className="rounded-full px-2.5 py-0.5 text-xs backdrop-blur-sm font-semibold shadow-none"
-              >
-                {isTransfer ? "振替" : isIncome ? "収入" : "支出"}
-              </Badge>
-            )}
-            {isAdvanceRecovery && (
-              <Badge
-                variant="outline"
-                className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-blue-600 border-blue-600 bg-blue-50"
-              >
-                立替金回収
-              </Badge>
-            )}
-            {advance && (
-              <Badge
-                variant="outline"
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  advance.type === "friend"
-                    ? "text-orange-600 border-orange-600 bg-orange-50"
-                    : "text-purple-600 border-purple-600 bg-purple-50"
-                }`}
-              >
-                {advance.type === "friend" ? "友人立替" : "親負担"}
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-gray-700 flex-wrap font-medium">
-            <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
-              {format(date, dateFormat, { locale: ja })}
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
-              {categoryMain} / {categorySub}
-            </span>
-            {showPaymentMethod && paymentMethod && (
-              <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
-                {getPaymentMethodLabel(paymentMethod)}
-              </span>
-            )}
-            {advance &&
-              advance.advanceAmount !== undefined &&
-              advance.personalAmount !== undefined && (
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 backdrop-blur-md border border-blue-200 text-blue-700">
-                  立替: ¥{advance.advanceAmount.toLocaleString()} / 自己: ¥
-                  {advance.personalAmount.toLocaleString()}
-                </span>
-              )}
-            {isTransfer && transfer && (
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 backdrop-blur-md border border-indigo-200 text-indigo-700 font-semibold">
-                {getPaymentMethodLabel(transfer.from)} →{" "}
-                {getPaymentMethodLabel(transfer.to)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3 ml-4">
-          <div className="text-right">
-            <div
-              className={`text-xl font-bold transition-all ${
-                isAdvanceRecovery
-                  ? "text-blue-600"
-                  : isTransfer
-                  ? "text-indigo-700"
-                  : isIncome
-                  ? "text-emerald-700"
-                  : "text-gray-900"
-              }`}
-            >
-              {isTransfer ? "" : isIncome ? "+" : "-"}¥{amount.toLocaleString()}
-            </div>
-            {isAdvanceRecovery && (
-              <div className="text-xs text-blue-500 mt-0.5">回収</div>
-            )}
-            {isTransfer && (
-              <div className="text-xs text-indigo-600 mt-0.5">振替</div>
-            )}
-          </div>
-          <div className={`flex items-center ${onEdit ? "gap-2" : "gap-0"}`}>
+      <div className="relative overflow-hidden rounded-2xl" ref={containerRef}>
+        {/* スワイプアクション背景 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-red-500 flex items-center justify-end pr-4">
+          <div className="flex items-center gap-2">
             {onEdit && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => onEdit(id)}
-                className="rounded-xl h-9 w-9 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                onClick={() => {
+                  onEdit(id);
+                  closeSwipe();
+                }}
+                className="rounded-xl h-10 w-10 bg-white/20 hover:bg-white/30 text-white"
                 title="編集"
               >
                 <Pencil className="h-4 w-4" />
@@ -191,13 +157,215 @@ export function TransactionListItem({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setDeleteDialogOpen(true)}
-                className="rounded-xl h-9 w-9 hover:bg-red-50 hover:text-red-600 transition-colors"
+                onClick={() => {
+                  setDeleteDialogOpen(true);
+                  closeSwipe();
+                }}
+                className="rounded-xl h-10 w-10 bg-white/20 hover:bg-white/30 text-white"
                 title="削除"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* メインコンテンツ */}
+        <div
+          className={`relative flex flex-col md:flex-row md:items-center justify-between p-2 md:p-4 rounded-2xl 
+                      bg-white/95 backdrop-blur-xl 
+                      border-2 border-white/60
+                      hover:bg-white
+                      hover:border-white/80
+                      transition-all duration-300 hover:shadow-glass-lg group
+                      ${
+                        isDragging
+                          ? "transition-none"
+                          : "transition-transform duration-200"
+                      }`}
+          style={{ transform: `translateX(${currentX}px)` }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div className="flex-1 w-full">
+            {/* ヘッダー部分: 説明とバッジ */}
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-sm text-gray-900 group-hover:text-blue-700 transition-colors truncate">
+                  {description}
+                </h3>
+                {/* デスクトップ用の詳細情報 - 項目名の下 */}
+                <div className="hidden md:flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 mt-1">
+                  <span>{format(date, dateFormat, { locale: ja })}</span>
+                  <span>•</span>
+                  <span>
+                    {categoryMain} / {categorySub}
+                  </span>
+                  {showPaymentMethod && paymentMethod && (
+                    <>
+                      <span>•</span>
+                      <span>{getPaymentMethodLabel(paymentMethod)}</span>
+                    </>
+                  )}
+                  {advance &&
+                    advance.advanceAmount !== undefined &&
+                    advance.personalAmount !== undefined && (
+                      <>
+                        <span>•</span>
+                        <span className="text-blue-600">
+                          立替: ¥{advance.advanceAmount.toLocaleString()} /
+                          自己: ¥{advance.personalAmount.toLocaleString()}
+                        </span>
+                      </>
+                    )}
+                  {isTransfer && transfer && (
+                    <>
+                      <span>•</span>
+                      <span className="text-indigo-600 font-medium">
+                        {getPaymentMethodLabel(transfer.from)} →{" "}
+                        {getPaymentMethodLabel(transfer.to)}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                {showBadge && (
+                  <Badge
+                    variant={
+                      isTransfer
+                        ? "secondary"
+                        : isIncome
+                        ? "default"
+                        : "secondary"
+                    }
+                    className="rounded-full px-1.5 py-0.5 text-xs backdrop-blur-sm font-semibold shadow-none"
+                  >
+                    {isTransfer ? "振替" : isIncome ? "収入" : "支出"}
+                  </Badge>
+                )}
+                {isAdvanceRecovery && (
+                  <Badge
+                    variant="outline"
+                    className="rounded-full px-1.5 py-0.5 text-xs font-semibold text-blue-600 border-blue-600 bg-blue-50"
+                  >
+                    立替金回収
+                  </Badge>
+                )}
+                {advance && (
+                  <Badge
+                    variant="outline"
+                    className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                      advance.type === "friend"
+                        ? "text-orange-600 border-orange-600 bg-orange-50"
+                        : "text-purple-600 border-purple-600 bg-purple-50"
+                    }`}
+                  >
+                    {advance.type === "friend" ? "友人立替" : "親負担"}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* 金額と詳細情報 - スマホのみ表示 */}
+            <div className="flex items-center justify-between md:hidden">
+              <div
+                className={`text-base font-bold transition-all ${
+                  isAdvanceRecovery
+                    ? "text-blue-600"
+                    : isTransfer
+                    ? "text-indigo-700"
+                    : isIncome
+                    ? "text-emerald-700"
+                    : "text-gray-900"
+                }`}
+              >
+                {isTransfer ? "" : isIncome ? "+" : "-"}¥
+                {amount.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <span>{format(date, dateFormat, { locale: ja })}</span>
+                <span>•</span>
+                <span>{categoryMain}</span>
+                {showPaymentMethod && paymentMethod && (
+                  <>
+                    <span>•</span>
+                    <span>{getPaymentMethodLabel(paymentMethod)}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* 追加情報 - スマホのみ表示 */}
+            {(advance || isTransfer) && (
+              <div className="mt-1 text-xs text-gray-600 md:hidden">
+                {advance &&
+                  advance.advanceAmount !== undefined &&
+                  advance.personalAmount !== undefined && (
+                    <span className="text-blue-600">
+                      立替: ¥{advance.advanceAmount.toLocaleString()} / 自己: ¥
+                      {advance.personalAmount.toLocaleString()}
+                    </span>
+                  )}
+                {isTransfer && transfer && (
+                  <span className="text-indigo-600 font-medium">
+                    {getPaymentMethodLabel(transfer.from)} →{" "}
+                    {getPaymentMethodLabel(transfer.to)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* デスクトップ用の金額とアクションボタンエリア */}
+          <div className="hidden md:flex items-center gap-3 ml-4">
+            <div className="text-right">
+              <div
+                className={`text-xl font-bold transition-all ${
+                  isAdvanceRecovery
+                    ? "text-blue-600"
+                    : isTransfer
+                    ? "text-indigo-700"
+                    : isIncome
+                    ? "text-emerald-700"
+                    : "text-gray-900"
+                }`}
+              >
+                {isTransfer ? "" : isIncome ? "+" : "-"}¥
+                {amount.toLocaleString()}
+              </div>
+              {isAdvanceRecovery && (
+                <div className="text-xs text-blue-500 mt-0.5">回収</div>
+              )}
+              {isTransfer && (
+                <div className="text-xs text-indigo-600 mt-0.5">振替</div>
+              )}
+            </div>
+            <div className={`flex items-center ${onEdit ? "gap-2" : "gap-0"}`}>
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(id)}
+                  className="rounded-xl h-9 w-9 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  title="編集"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="rounded-xl h-9 w-9 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  title="削除"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

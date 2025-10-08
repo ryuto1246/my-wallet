@@ -37,17 +37,39 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-6",
+        // ベーススタイル
+        "fixed z-50 grid w-full gap-6",
         "border-2 border-white/60",
         "bg-white/98 backdrop-blur-xl",
-        "p-8 shadow-glass-lg rounded-3xl",
-        "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+        "shadow-glass-lg",
+        "duration-200",
+        // モバイル: BottomSheet
+        "bottom-0 left-0 right-0",
+        "pt-10 pb-8 px-6",
+        "rounded-t-3xl",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out",
+        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+        "max-h-[95vh] overflow-y-auto",
+        // デスクトップ: 中央モーダル
+        "md:bottom-auto md:left-[50%] md:top-[50%]",
+        "md:p-8",
+        "md:max-w-lg md:translate-x-[-50%] md:translate-y-[-50%]",
+        "md:rounded-3xl",
+        "md:data-[state=closed]:slide-out-to-bottom-0 md:data-[state=open]:slide-in-from-bottom-0",
+        "md:data-[state=closed]:zoom-out-95 md:data-[state=open]:zoom-in-95",
+        "md:data-[state=closed]:slide-out-to-left-1/2 md:data-[state=closed]:slide-out-to-top-[48%]",
+        "md:data-[state=open]:slide-in-from-left-1/2 md:data-[state=open]:slide-in-from-top-[48%]",
+        "md:max-h-[90vh]",
         className
       )}
       {...props}
     >
+      {/* モバイル用のドラッグハンドル */}
+      <div className="md:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 rounded-full bg-gray-400/60" />
+
       {children}
-      <DialogPrimitive.Close className="absolute right-5 top-5 rounded-xl p-2.5 bg-white/70 hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-600/60 disabled:pointer-events-none border-2 border-white/50">
+      <DialogPrimitive.Close className="absolute right-5 top-5 rounded-xl p-2.5 bg-white/70 hover:bg-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-600/60 disabled:pointer-events-none border-2 border-white/50 z-10">
         <Cross2Icon className="h-5 w-5 text-gray-700" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
