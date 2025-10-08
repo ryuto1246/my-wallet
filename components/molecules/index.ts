@@ -9,4 +9,6 @@ export { AdvanceBalanceCard } from "./AdvanceBalanceCard";
 export { AISuggestionBadge } from "./AISuggestionBadge";
 export { SuggestionCarousel } from "./SuggestionCarousel";
 export { ImagePreview } from "./ImagePreview";
+export { PaymentMethodBalanceCard } from "./PaymentMethodBalanceCard";
+export type { PaymentMethodBalance } from "./PaymentMethodBalanceCard";
 

@@ -60,6 +60,8 @@ export function TransactionListItem({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const isAdvanceRecovery = isIncome && categorySub === "立替金回収";
+  const isBalanceAdjustment =
+    categoryMain === "その他" && categorySub === "残高確認/修正";
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -157,8 +159,12 @@ export function TransactionListItem({
               <div className="text-xs text-blue-500 mt-0.5">回収</div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {onEdit && (
+          <div
+            className={`flex items-center ${
+              onEdit && !isBalanceAdjustment ? "gap-2" : "gap-0"
+            }`}
+          >
+            {onEdit && !isBalanceAdjustment && (
               <Button
                 variant="ghost"
                 size="icon"

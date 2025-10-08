@@ -9,4 +9,5 @@ export * from './transaction';
 export * from './user';
 export * from './ai-learning';
 export * from './image-recognition';
+export * from './balance-adjustment';
 

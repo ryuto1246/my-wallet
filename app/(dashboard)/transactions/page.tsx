@@ -4,8 +4,9 @@
 
 "use client";
 
-import { useState } from "react";
-import { useTransactions } from "@/hooks";
+import { useState, useMemo } from "react";
+import { useTransactions, useBalanceAdjustments } from "@/hooks";
+import { deleteBalanceAdjustment } from "@/lib/firebase";
 import { DashboardTemplate } from "@/components/templates";
 import {
   PageHeader,
@@ -14,7 +15,10 @@ import {
   BatchImageRecognitionDialog,
 } from "@/components/organisms";
 import { TransactionFormValues } from "@/lib/validations/transaction";
-import { transformFormDataToTransaction } from "@/lib/helpers";
+import {
+  transformFormDataToTransaction,
+  mergeTransactionsAndAdjustments,
+} from "@/lib/helpers";
 import type { TransactionInput } from "@/types/transaction";
 
 export default function TransactionsPage() {
@@ -30,6 +34,12 @@ export default function TransactionsPage() {
     updateTransaction,
     deleteTransaction,
   } = useTransactions();
+  const { adjustments } = useBalanceAdjustments();
+
+  // 取引と残高調整を統合
+  const allTransactions = useMemo(() => {
+    return mergeTransactionsAndAdjustments(transactions, adjustments);
+  }, [transactions, adjustments]);
 
   const handleSubmit = async (data: TransactionFormValues) => {
     try {
@@ -62,6 +72,7 @@ export default function TransactionsPage() {
           description: data.description,
           paymentMethod: data.paymentMethod,
           isIncome: data.isIncome,
+          isTransfer: false,
           hasAdvance: !!data.advance,
           advance: data.advance
             ? {
@@ -87,7 +98,15 @@ export default function TransactionsPage() {
 
   // 削除処理
   const handleDelete = async (id: string) => {
-    await deleteTransaction(id);
+    // 残高確認/修正の場合は、IDから残高調整IDを抽出して削除
+    if (id.startsWith("adjustment-")) {
+      const adjustmentId = id.replace("adjustment-", "");
+      await deleteBalanceAdjustment(adjustmentId);
+      // ページをリロードして最新データを取得
+      window.location.reload();
+    } else {
+      await deleteTransaction(id);
+    }
   };
 
   // 編集処理
@@ -154,7 +173,7 @@ export default function TransactionsPage() {
 
       <TransactionList
         title="最近の取引"
-        transactions={transactions}
+        transactions={allTransactions}
         loading={loading}
         showAll
         showBadge

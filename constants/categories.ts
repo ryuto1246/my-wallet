@@ -199,6 +199,18 @@ export const CATEGORIES: CategoryDefinition[] = [
     isIncome: false,
   },
   
+  // 振替
+  {
+    main: '振替',
+    subs: [
+      '口座間振替',
+      '現金チャージ',
+      '現金引き出し',
+      'その他',
+    ],
+    isIncome: false,
+  },
+
   // その他
   {
     main: 'その他',

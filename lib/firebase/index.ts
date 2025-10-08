@@ -8,4 +8,5 @@ export * from './transactions';
 export * from './users';
 export * from './storage';
 export * from './ai-learning';
+export * from './balance-adjustments';
 

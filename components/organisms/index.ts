@@ -10,4 +10,7 @@ export { TransactionFormNew } from "./TransactionFormNew";
 export { ImageUploadZone } from "./ImageUploadZone";
 export { RecognitionResultCard } from "./RecognitionResultCard";
 export { BatchImageRecognitionDialog } from "./BatchImageRecognitionDialog";
+export { PaymentMethodBalances } from "./PaymentMethodBalances";
+export { BalanceAdjustmentDialog } from "./BalanceAdjustmentDialog";
+export { TransferFormDialog } from "./TransferFormDialog";
 

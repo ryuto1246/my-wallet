@@ -111,3 +111,33 @@ export function getCurrentYearRange(): { start: Date; end: Date } {
   };
 }
 
+/**
+ * 直近一ヶ月の日付範囲を取得（今日から30日前）
+ */
+export function getLastThirtyDaysRange(): { start: Date; end: Date } {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  const start = new Date(now);
+  start.setDate(now.getDate() - 30);
+  start.setHours(0, 0, 0, 0);
+
+  return { start, end };
+}
+
+/**
+ * 直近一年の日付範囲を取得（今日から365日前）
+ */
+export function getLastYearRange(): { start: Date; end: Date } {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  const start = new Date(now);
+  start.setFullYear(now.getFullYear() - 1);
+  start.setHours(0, 0, 0, 0);
+
+  return { start, end };
+}
+

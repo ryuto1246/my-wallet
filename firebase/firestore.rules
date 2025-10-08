@@ -48,6 +48,13 @@ service cloud.firestore {
       allow update, delete: if isOwner(userId);
     }
     
+    // 残高調整コレクション
+    match /balanceAdjustments/{adjustmentId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
     // デフォルトで全て拒否
     match /{document=**} {
       allow read, write: if false;

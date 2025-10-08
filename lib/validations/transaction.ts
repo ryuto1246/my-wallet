@@ -22,6 +22,18 @@ export const advanceInfoSchema = z.object({
   }
 );
 
+// 振替情報のスキーマ
+export const transferInfoSchema = z.object({
+  from: z.string().min(1, '振替元を選択してください'),
+  to: z.string().min(1, '振替先を選択してください'),
+}).refine(
+  (data) => data.from !== data.to,
+  {
+    message: '振替元と振替先は異なる必要があります',
+    path: ['to'],
+  }
+);
+
 export const transactionFormSchema = z.object({
   date: z.date({ message: '日付を選択してください' }),
   amount: z
@@ -42,10 +54,13 @@ export const transactionFormSchema = z.object({
     .string({ message: '決済方法を選択してください' })
     .min(1, '決済方法を選択してください'),
   isIncome: z.boolean(),
+  isTransfer: z.boolean().default(false),
   hasAdvance: z.boolean().default(false),
   memo: z.string().optional(),
   // 立替情報（任意）
   advance: advanceInfoSchema.optional(),
+  // 振替情報（任意）
+  transfer: transferInfoSchema.optional(),
   // 画像認識時の元の店舗名（内部使用）
   originalMerchantName: z.string().optional(),
   // ユーザーが入力したキーワード（内部使用）
