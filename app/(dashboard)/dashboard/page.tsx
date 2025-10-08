@@ -107,9 +107,9 @@ export default function DashboardPage() {
     return undefined;
   }, [transactions]);
 
-  // 最近の取引（最新5件）
+  // 最近の取引（画面に収まる分だけ表示：3件）
   const recentTransactions = useMemo(
-    () => getRecentTransactions(transactions, 5),
+    () => getRecentTransactions(transactions, 3),
     [transactions]
   );
 

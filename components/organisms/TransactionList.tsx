@@ -39,9 +39,9 @@ export function TransactionList({
 }: TransactionListProps) {
   return (
     <GlassCard variant="soft" intensity="strong" className="overflow-hidden">
-      <div className="p-4 sm:p-5 md:p-6 lg:p-8">
-        <div className="flex flex-row items-center justify-between pb-3 sm:pb-4 md:pb-6 mb-2">
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+      <div className="p-4 sm:p-5 md:p-6">
+        <div className="flex flex-row items-center justify-between pb-3 sm:pb-4 mb-2">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
             {title}
           </h2>
           {!showAll && transactions.length > 0 && onViewAllClick && (
@@ -79,7 +79,7 @@ export function TransactionList({
             </Button>
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {transactions.map((transaction) => (
               <TransactionListItem
                 key={transaction.id}

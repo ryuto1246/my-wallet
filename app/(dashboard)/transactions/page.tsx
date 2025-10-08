@@ -33,7 +33,6 @@ export default function TransactionsPage() {
     <DashboardTemplate>
       <PageHeader
         title="取引一覧"
-        description="すべての収支を確認・管理できます"
         showAddButton
         onAddClick={() => setFormOpen(true)}
       />

@@ -22,6 +22,10 @@ const Textarea = React.forwardRef<
         "hover:border-white/60",
         "disabled:cursor-not-allowed disabled:opacity-50",
         "md:text-sm",
+        // エラー時のスタイル
+        "aria-[invalid=true]:border-red-500",
+        "aria-[invalid=true]:focus-visible:ring-red-500/60",
+        "aria-[invalid=true]:focus-visible:border-red-500",
         className
       )}
       ref={ref}

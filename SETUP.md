@@ -32,8 +32,9 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=wallet-2029e.firebasestorage.app
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=981798285165
 NEXT_PUBLIC_FIREBASE_APP_ID=1:981798285165:web:b91692a1c392df616cb464
 
-# Gemini API Configuration (後で設定)
-GEMINI_API_KEY=
+# Gemini API Configuration
+# Google AI Studio (https://aistudio.google.com/app/apikey) で取得
+NEXT_PUBLIC_GEMINI_API_KEY=
 
 # Google Calendar API Configuration (Phase 6で必要)
 GOOGLE_CALENDAR_CLIENT_ID=
@@ -239,6 +240,49 @@ firebase deploy --only firestore:indexes
 # すべてをデプロイ
 firebase deploy
 ```
+
+## 🤖 Gemini AI API の設定（Phase 3）
+
+Phase 3 の AI サジェスチョン機能を使用するには、Gemini API キーが必要です。
+
+### Google AI Studio で API キーを取得
+
+1. **Google AI Studio にアクセス**
+
+   https://aistudio.google.com/app/apikey
+
+2. **API キーを作成**
+
+   - 「Create API key」をクリック
+   - 既存のプロジェクトを選択、または新規作成
+   - API キーをコピー
+
+3. **`.env.local` に追加**
+
+   ```bash
+   NEXT_PUBLIC_GEMINI_API_KEY=your_api_key_here
+   ```
+
+4. **開発サーバーを再起動**
+
+   ```bash
+   # Ctrl+C で停止してから
+   npm run dev
+   ```
+
+### 機能の確認
+
+1. トランザクション追加画面を開く
+2. 項目名に「タリーズでコーヒー」と入力
+3. 「AI サジェスチョン」ボタンをクリック
+4. AI が提案したカテゴリーと項目名を確認
+5. 「適用」をクリックして自動入力
+
+### 注意事項
+
+- Gemini API は無料枠があります（詳細: https://ai.google.dev/pricing）
+- API キーは `.env.local` に保存し、Git にコミットしないでください
+- API キーがない場合でも、アプリの他の機能は正常に動作します
 
 ## 🐛 トラブルシューティング
 

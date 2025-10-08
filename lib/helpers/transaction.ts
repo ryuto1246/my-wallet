@@ -123,7 +123,14 @@ export function transformFormDataToTransaction(
 
   // 立替情報がある場合は追加
   if (data.hasAdvance && data.advance) {
-    const advanceInfo: any = {
+    const advanceInfo: {
+      type: 'friend' | 'parent' | null;
+      totalAmount: number;
+      advanceAmount: number;
+      personalAmount: number;
+      isRecovered: boolean;
+      memo?: string;
+    } = {
       type: data.advance.type,
       totalAmount: data.advance.totalAmount,
       advanceAmount: data.advance.advanceAmount,

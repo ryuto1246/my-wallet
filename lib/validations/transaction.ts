@@ -42,9 +42,9 @@ export const transactionFormSchema = z.object({
     .string({ message: '決済方法を選択してください' })
     .min(1, '決済方法を選択してください'),
   isIncome: z.boolean(),
+  hasAdvance: z.boolean().default(false),
   memo: z.string().optional(),
   // 立替情報（任意）
-  hasAdvance: z.boolean().default(false),
   advance: advanceInfoSchema.optional(),
 });
 

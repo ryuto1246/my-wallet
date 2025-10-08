@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar as CalendarIcon, Info } from "lucide-react";
+import { Calendar as CalendarIcon, Info, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 
@@ -48,6 +48,10 @@ import {
 import { CATEGORIES, getSubCategories } from "@/constants/categories";
 import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 import { cn } from "@/lib/utils";
+import { useAISuggestion } from "@/hooks";
+import { AISuggestionBadge } from "@/components/molecules";
+import { saveUserCorrection } from "@/lib/firebase/ai-learning";
+import { useAuth } from "@/hooks";
 
 interface TransactionFormProps {
   open: boolean;
@@ -57,6 +61,34 @@ interface TransactionFormProps {
   mode?: "create" | "edit";
 }
 
+/**
+ * 現在の時間帯を取得
+ */
+const getTimeOfDay = (): string => {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  if (hour >= 17 && hour < 21) return "evening";
+  return "night";
+};
+
+/**
+ * 現在の曜日を取得
+ */
+const getDayOfWeek = (): string => {
+  const days = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  return days[new Date().getDay()];
+};
+
 export function TransactionForm({
   open,
   onOpenChange,
@@ -64,12 +96,27 @@ export function TransactionForm({
   defaultValues,
   mode = "create",
 }: TransactionFormProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedMainCategory, setSelectedMainCategory] = useState<string>("");
+  const [aiInputText, setAiInputText] = useState("");
+  const [aiSuggestionApplied, setAiSuggestionApplied] = useState(false);
+  const [originalAiSuggestion, setOriginalAiSuggestion] = useState<{
+    category: { main: string; sub: string };
+    description: string;
+  } | null>(null);
+
+  const {
+    suggestion: aiSuggestion,
+    isLoading: aiLoading,
+    getSuggestion,
+    clearSuggestion,
+    isAvailable: aiAvailable,
+  } = useAISuggestion();
 
   const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionFormSchema),
+    resolver: zodResolver(transactionFormSchema) as never,
     defaultValues: {
       date: new Date(),
       amount: 0,
@@ -78,8 +125,8 @@ export function TransactionForm({
       description: "",
       paymentMethod: "",
       isIncome: false,
-      memo: "",
       hasAdvance: false,
+      memo: "",
       advance: undefined,
       ...defaultValues,
     },
@@ -91,6 +138,8 @@ export function TransactionForm({
   const amount = form.watch("amount");
   const advanceAmount = form.watch("advance.advanceAmount");
   const personalAmount = form.watch("advance.personalAmount");
+  const description = form.watch("description");
+  const paymentMethod = form.watch("paymentMethod");
 
   // メインカテゴリーが変更されたらサブカテゴリーをリセット
   useEffect(() => {
@@ -138,14 +187,115 @@ export function TransactionForm({
   const handleSubmit = async (data: TransactionFormValues) => {
     setLoading(true);
     try {
+      // ユーザーがAIサジェスチョンを修正した場合、学習データとして保存
+      if (
+        user &&
+        originalAiSuggestion &&
+        aiSuggestionApplied &&
+        (originalAiSuggestion.category.main !== data.categoryMain ||
+          originalAiSuggestion.category.sub !== data.categorySub ||
+          originalAiSuggestion.description !== data.description)
+      ) {
+        await saveUserCorrection(
+          user.id,
+          aiInputText,
+          {
+            category: originalAiSuggestion.category,
+            description: originalAiSuggestion.description,
+          },
+          {
+            category: {
+              main: data.categoryMain,
+              sub: data.categorySub,
+            },
+            description: data.description,
+          },
+          {
+            amount: data.amount,
+            paymentMethod: data.paymentMethod,
+            timeOfDay: getTimeOfDay(),
+            dayOfWeek: getDayOfWeek(),
+          }
+        );
+      }
+
       await onSubmit(data);
       form.reset();
+      clearSuggestion();
+      setAiInputText("");
+      setAiSuggestionApplied(false);
+      setOriginalAiSuggestion(null);
       onOpenChange(false);
     } catch (error) {
       console.error("フォーム送信エラー:", error);
+      alert("エラーが発生しました。もう一度お試しください。");
     } finally {
       setLoading(false);
     }
+  };
+
+  // バリデーションエラーがある場合、最初のエラーフィールドにフォーカス
+  const handleFormError = () => {
+    const errors = form.formState.errors;
+    const firstErrorField = Object.keys(errors)[0];
+
+    if (firstErrorField) {
+      // エラーがあることをユーザーに通知
+      const errorMessages = Object.entries(errors)
+        .map(([field, error]) => {
+          const fieldName =
+            field === "date"
+              ? "日付"
+              : field === "amount"
+              ? "金額"
+              : field === "categoryMain"
+              ? "メインカテゴリー"
+              : field === "categorySub"
+              ? "サブカテゴリー"
+              : field === "description"
+              ? "項目名"
+              : field === "paymentMethod"
+              ? "決済方法"
+              : field;
+          return `${fieldName}: ${error.message}`;
+        })
+        .join("\n");
+
+      alert(`入力内容にエラーがあります:\n\n${errorMessages}`);
+
+      // 最初のエラーフィールドにフォーカス
+      const element = document.querySelector(`[name="${firstErrorField}"]`);
+      if (element instanceof HTMLElement) {
+        element.focus();
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  };
+
+  // AIサジェスチョンを適用
+  const applyAiSuggestion = () => {
+    if (!aiSuggestion) return;
+
+    form.setValue("categoryMain", aiSuggestion.category.main);
+    form.setValue("categorySub", aiSuggestion.category.sub);
+    form.setValue("description", aiSuggestion.description);
+    setAiSuggestionApplied(true);
+    setOriginalAiSuggestion({
+      category: aiSuggestion.category,
+      description: aiSuggestion.description,
+    });
+  };
+
+  // AIサジェスチョンを取得
+  const handleGetAiSuggestion = () => {
+    if (!description.trim()) return;
+
+    setAiInputText(description);
+    getSuggestion(description, {
+      amount,
+      paymentMethod,
+      isIncome,
+    });
   };
 
   // 収入/支出に応じたカテゴリーをフィルタリング
@@ -172,7 +322,7 @@ export function TransactionForm({
 
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSubmit)}
+            onSubmit={form.handleSubmit(handleSubmit, handleFormError)}
             className="space-y-6"
           >
             {/* 収入/支出切り替え */}
@@ -337,14 +487,53 @@ export function TransactionForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>項目名</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>項目名</FormLabel>
+                    {aiAvailable && field.value && !aiSuggestion && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleGetAiSuggestion}
+                        disabled={aiLoading}
+                        className="h-7 text-xs"
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        {aiLoading ? "分析中..." : "AIサジェスチョン"}
+                      </Button>
+                    )}
+                  </div>
                   <FormControl>
-                    <Input placeholder="例: スーパーで食材購入" {...field} />
+                    <Input
+                      placeholder="例: スーパーで食材購入"
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // 入力が変わったらサジェスチョンをクリア
+                        if (aiSuggestion) {
+                          clearSuggestion();
+                          setAiSuggestionApplied(false);
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormDescription>
                     具体的な内容を入力してください
                   </FormDescription>
                   <FormMessage />
+
+                  {/* AIサジェスチョン表示 */}
+                  {aiSuggestion && (
+                    <div className="mt-3">
+                      <AISuggestionBadge
+                        confidence={aiSuggestion.confidence}
+                        suggestion={`${aiSuggestion.category.main} > ${aiSuggestion.category.sub} - ${aiSuggestion.description}`}
+                        onApply={applyAiSuggestion}
+                        onDismiss={clearSuggestion}
+                        isApplied={aiSuggestionApplied}
+                      />
+                    </div>
+                  )}
                 </FormItem>
               )}
             />

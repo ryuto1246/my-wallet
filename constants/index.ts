@@ -4,4 +4,5 @@
 
 export * from './categories';
 export * from './paymentMethods';
+export * from './descriptionTemplates';
 

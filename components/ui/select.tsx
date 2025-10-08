@@ -35,6 +35,10 @@ const SelectTrigger = React.forwardRef<
       "disabled:cursor-not-allowed disabled:opacity-50",
       "transition-all duration-200",
       "[&>span]:line-clamp-1",
+      // エラー時のスタイル
+      "aria-[invalid=true]:border-red-500",
+      "aria-[invalid=true]:focus:ring-red-500/60",
+      "aria-[invalid=true]:focus:border-red-500",
       className
     )}
     {...props}
