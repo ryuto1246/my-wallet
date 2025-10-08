@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { BalanceAdjustment, BalanceAdjustmentInput } from '@/types';
+import { normalizePaymentMethod } from '@/lib/helpers/payment';
 
 const COLLECTION_NAME = 'balanceAdjustments';
 
@@ -69,7 +70,7 @@ export async function getBalanceAdjustments(
       id: doc.id,
       userId: data.userId,
       date: data.date.toDate(),
-      paymentMethod: data.paymentMethod,
+      paymentMethod: normalizePaymentMethod(data.paymentMethod), // 正規化
       expectedBalance: data.expectedBalance,
       actualBalance: data.actualBalance,
       difference: data.difference,
@@ -101,7 +102,7 @@ export async function getBalanceAdjustmentsByPaymentMethod(
       id: doc.id,
       userId: data.userId,
       date: data.date.toDate(),
-      paymentMethod: data.paymentMethod,
+      paymentMethod: normalizePaymentMethod(data.paymentMethod), // 正規化
       expectedBalance: data.expectedBalance,
       actualBalance: data.actualBalance,
       difference: data.difference,

@@ -3,6 +3,7 @@
  */
 
 export { AuthCard } from "./AuthCard";
+export { BalanceChart } from "./BalanceChart";
 export { MonthlyStatsCards } from "./MonthlyStatsCards";
 export { TransactionList } from "./TransactionList";
 export { PageHeader } from "./PageHeader";

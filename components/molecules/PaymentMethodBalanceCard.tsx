@@ -7,6 +7,7 @@ import { CreditCard } from "lucide-react";
 import { GlassCard } from "@/components/atoms";
 import { getPaymentMethodLabel, getPaymentMethodColor } from "@/constants";
 import { formatCurrency } from "@/lib/helpers/format";
+import type { PaymentMethodValue } from "@/types/transaction";
 
 export interface PaymentMethodBalance {
   paymentMethod: string;
@@ -26,18 +27,18 @@ export function PaymentMethodBalanceCard({
   data,
   onClick,
 }: PaymentMethodBalanceCardProps) {
-  const label = getPaymentMethodLabel(data.paymentMethod as any);
-  const color = getPaymentMethodColor(data.paymentMethod as any);
+  const label = getPaymentMethodLabel(data.paymentMethod as PaymentMethodValue);
+  const color = getPaymentMethodColor(data.paymentMethod as PaymentMethodValue);
   const displayBalance = data.balance;
   const isPositive = displayBalance >= 0;
   const hasAdjustment = data.lastAdjustmentDate !== undefined;
 
   return (
     <GlassCard
-      className={`p-4 cursor-pointer hover:shadow-md transition-shadow`}
+      className={`p-3 cursor-pointer hover:shadow-md transition-shadow`}
       onClick={onClick}
     >
-      <div className="space-y-3">
+      <div className="space-y-2">
         {/* ヘッダー */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -51,11 +52,11 @@ export function PaymentMethodBalanceCard({
         </div>
 
         {/* 残高 */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <div className="text-xs font-bold text-black">
             {hasAdjustment ? "現在残高" : "収支"}
           </div>
-          <div className="text-2xl font-black text-black">
+          <div className="text-xl sm:text-2xl font-black text-black">
             {isPositive ? "+" : ""}
             {formatCurrency(displayBalance)}
           </div>

@@ -170,6 +170,7 @@ export function transformFormDataToTransaction(
       to: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
     };
     memo?: string;
+    imageUrl?: string;
     ai?: {
       suggested: boolean;
       confidence: number;
@@ -230,8 +231,27 @@ export function transformFormDataToTransaction(
     baseTransaction.memo = data.memo;
   }
 
-  // 元の店舗名またはユーザーキーワードがある場合はAI情報として追加
-  if (data.originalMerchantName || data.userKeyword) {
+  // 画像URLがある場合は追加
+  if (data.imageUrl) {
+    baseTransaction.imageUrl = data.imageUrl;
+  }
+
+  // AI情報が直接渡されている場合は追加（一括登録時など）
+  if (data.ai) {
+    baseTransaction.ai = data.ai as {
+      suggested: boolean;
+      confidence: number;
+      originalSuggestion: {
+        category: { main: string; sub: string };
+        description: string;
+      };
+      userModified: boolean;
+      originalMerchantName?: string;
+      userKeyword?: string;
+    };
+  }
+  // 元の店舗名またはユーザーキーワードがある場合はAI情報として追加（フォーム入力時）
+  else if (data.originalMerchantName || data.userKeyword) {
     const aiInfo: {
       suggested: boolean;
       confidence: number;

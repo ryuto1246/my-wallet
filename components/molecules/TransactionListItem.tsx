@@ -62,8 +62,6 @@ export function TransactionListItem({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const isAdvanceRecovery = isIncome && categorySub === "立替金回収";
-  const isBalanceAdjustment =
-    categoryMain === "その他" && categorySub === "残高確認/修正";
   const isTransfer = !!transfer;
 
   const handleDelete = async () => {
@@ -98,10 +96,12 @@ export function TransactionListItem({
             </h3>
             {showBadge && (
               <Badge
-                variant={isIncome ? "default" : "secondary"}
+                variant={
+                  isTransfer ? "secondary" : isIncome ? "default" : "secondary"
+                }
                 className="rounded-full px-2.5 py-0.5 text-xs backdrop-blur-sm font-semibold shadow-none"
               >
-                {isIncome ? "収入" : "支出"}
+                {isTransfer ? "振替" : isIncome ? "収入" : "支出"}
               </Badge>
             )}
             {isAdvanceRecovery && (
@@ -122,14 +122,6 @@ export function TransactionListItem({
                 }`}
               >
                 {advance.type === "friend" ? "友人立替" : "親負担"}
-              </Badge>
-            )}
-            {isTransfer && transfer && (
-              <Badge
-                variant="outline"
-                className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-indigo-600 border-indigo-600 bg-indigo-50"
-              >
-                振替
               </Badge>
             )}
           </div>
@@ -165,23 +157,24 @@ export function TransactionListItem({
               className={`text-xl font-bold transition-all ${
                 isAdvanceRecovery
                   ? "text-blue-600"
+                  : isTransfer
+                  ? "text-indigo-700"
                   : isIncome
                   ? "text-emerald-700"
                   : "text-gray-900"
               }`}
             >
-              {isIncome ? "+" : "-"}¥{amount.toLocaleString()}
+              {isTransfer ? "" : isIncome ? "+" : "-"}¥{amount.toLocaleString()}
             </div>
             {isAdvanceRecovery && (
               <div className="text-xs text-blue-500 mt-0.5">回収</div>
             )}
+            {isTransfer && (
+              <div className="text-xs text-indigo-600 mt-0.5">振替</div>
+            )}
           </div>
-          <div
-            className={`flex items-center ${
-              onEdit && !isBalanceAdjustment ? "gap-2" : "gap-0"
-            }`}
-          >
-            {onEdit && !isBalanceAdjustment && (
+          <div className={`flex items-center ${onEdit ? "gap-2" : "gap-0"}`}>
+            {onEdit && (
               <Button
                 variant="ghost"
                 size="icon"

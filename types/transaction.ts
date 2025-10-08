@@ -77,6 +77,7 @@ export interface TransactionFormData {
   paymentMethod: PaymentMethodValue;
   isIncome: boolean;
   advance?: Partial<AdvanceInfo>;
+  transfer?: TransferInfo; // 振替情報（任意）
   calendarEventId?: string;
   imageUrl?: string;
   memo?: string;

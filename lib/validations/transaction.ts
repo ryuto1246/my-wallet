@@ -65,6 +65,10 @@ export const transactionFormSchema = z.object({
   originalMerchantName: z.string().optional(),
   // ユーザーが入力したキーワード（内部使用）
   userKeyword: z.string().optional(),
+  // 画像URL（一括登録時など）
+  imageUrl: z.string().optional(),
+  // AI情報（一括登録時など）
+  ai: z.any().optional(),
 });
 
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;

@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -47,12 +47,16 @@ interface TransferFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: TransferFormData) => Promise<void>;
+  defaultValues?: Partial<TransferFormData>;
+  mode?: "create" | "edit";
 }
 
 export function TransferFormDialog({
   open,
   onOpenChange,
   onSubmit,
+  defaultValues,
+  mode = "create",
 }: TransferFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +70,7 @@ export function TransferFormDialog({
     formState: { errors },
   } = useForm<TransferFormData>({
     resolver: zodResolver(transferFormSchema),
-    defaultValues: {
+    defaultValues: defaultValues || {
       date: new Date(),
       amount: 0,
       from: "",
@@ -80,6 +84,22 @@ export function TransferFormDialog({
   const fromMethod = watch("from");
   const toMethod = watch("to");
   const amount = watch("amount");
+
+  // デフォルト値が変更されたらフォームをリセット
+  useEffect(() => {
+    if (open && defaultValues) {
+      reset(defaultValues);
+    } else if (open && !defaultValues) {
+      reset({
+        date: new Date(),
+        amount: 0,
+        from: "",
+        to: "",
+        description: "口座間振替",
+        memo: "",
+      });
+    }
+  }, [open, defaultValues, reset]);
 
   // 振替元と振替先を入れ替える
   const handleSwapMethods = () => {
@@ -114,10 +134,10 @@ export function TransferFormDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            振替を記録
+            {mode === "edit" ? "振替を編集" : "振替を記録"}
           </DialogTitle>
           <DialogDescription className="text-base">
-            決済手段間のお金の移動を記録します
+            決済手段間のお金の移動を{mode === "edit" ? "編集" : "記録"}します
           </DialogDescription>
         </DialogHeader>
 
@@ -327,7 +347,13 @@ export function TransferFormDialog({
               className="flex-1 h-12 text-base font-semibold rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "保存中..." : "保存"}
+              {isSubmitting
+                ? mode === "edit"
+                  ? "更新中..."
+                  : "保存中..."
+                : mode === "edit"
+                ? "更新"
+                : "保存"}
             </Button>
           </div>
         </form>

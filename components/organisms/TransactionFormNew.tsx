@@ -249,7 +249,7 @@ export function TransactionFormNew({
     const mappedPaymentMethod = getPaymentMethodFromService(
       transaction.paymentService
     );
-    if (mappedPaymentMethod !== "その他") {
+    if (mappedPaymentMethod !== "other") {
       form.setValue("paymentMethod", mappedPaymentMethod, {
         shouldValidate: true,
       });

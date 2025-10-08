@@ -205,6 +205,24 @@ export function BatchImageRecognitionDialog({
     setEditingIndex(null);
   };
 
+  // 決済手段変更時の処理
+  const handlePaymentServiceChange = (newService: PaymentService) => {
+    setSelectedPaymentService(newService);
+
+    // 既に認識結果がある場合は、全ての取引の決済手段を更新
+    if (recognitionItems.length > 0) {
+      setRecognitionItems((prev) =>
+        prev.map((item) => ({
+          ...item,
+          transaction: {
+            ...item.transaction,
+            paymentService: newService,
+          },
+        }))
+      );
+    }
+  };
+
   // 編集中のアイテムのデフォルト値を取得
   const getEditDefaultValues = ():
     | Partial<TransactionFormValues>
@@ -327,20 +345,19 @@ export function BatchImageRecognitionDialog({
 
         <div className="space-y-6">
           {/* 決済サービス選択 */}
-          {recognitionItems.length === 0 && !isRecognizing && (
+          {!isRecognizing && (
             <div className="space-y-2">
               <Label htmlFor="payment-service">決済サービス</Label>
               <Select
                 value={selectedPaymentService}
                 onValueChange={(value) =>
-                  setSelectedPaymentService(value as PaymentService)
+                  handlePaymentServiceChange(value as PaymentService)
                 }
               >
                 <SelectTrigger id="payment-service">
                   <SelectValue placeholder="決済サービスを選択" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unknown">自動判定</SelectItem>
                   <SelectItem value="olive">三井住友OLIVE</SelectItem>
                   <SelectItem value="sony">ソニー銀行</SelectItem>
                   <SelectItem value="dpayment">d払い</SelectItem>
@@ -350,7 +367,9 @@ export function BatchImageRecognitionDialog({
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">
-                決済サービスを選択すると、より正確に認識できます
+                {recognitionItems.length === 0
+                  ? "決済サービスを選択すると、より正確に認識できます"
+                  : "決済サービスを変更すると、全ての取引に反映されます"}
               </p>
             </div>
           )}

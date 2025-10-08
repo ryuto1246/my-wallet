@@ -72,7 +72,7 @@ export function MonthlyStatsCards({
     PERIOD_OPTIONS.find((opt) => opt.value === period)?.label || "今月";
 
   return (
-    <div className="space-y-4 mb-6 sm:mb-8">
+    <div className="space-y-3 mb-4">
       {/* 期間選択ドロップダウン */}
       {onPeriodChange && (
         <div className="flex items-center gap-2 justify-end">
@@ -99,7 +99,7 @@ export function MonthlyStatsCards({
 
       {/* 統計カード */}
       <div
-        className={`grid gap-2 sm:gap-3 md:gap-4 lg:gap-5 ${
+        className={`grid gap-2 sm:gap-3 ${
           hasAdvance ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3"
         }`}
       >

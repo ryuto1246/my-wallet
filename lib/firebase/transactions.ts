@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { Transaction, TransactionFormData, TransactionFilter } from '@/types/transaction';
+import { normalizePaymentMethod } from '@/lib/helpers/payment';
 
 /**
  * Firestoreのタイムスタンプを日付に変換
@@ -51,6 +52,7 @@ export const createTransaction = async (
       paymentMethod: data.paymentMethod,
       isIncome: data.isIncome,
       advance: data.advance || null,
+      transfer: data.transfer || null,
       calendar: data.calendarEventId ? { eventId: data.calendarEventId } : null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -97,9 +99,13 @@ export const getTransaction = async (transactionId: string): Promise<Transaction
         amount: data.amount,
         category: data.category,
         description: data.description,
-        paymentMethod: data.paymentMethod,
+        paymentMethod: normalizePaymentMethod(data.paymentMethod), // 正規化
         isIncome: data.isIncome,
         advance: data.advance,
+        transfer: data.transfer ? {
+          from: normalizePaymentMethod(data.transfer.from), // 正規化
+          to: normalizePaymentMethod(data.transfer.to), // 正規化
+        } : undefined,
         calendar: data.calendar,
         ai: data.ai,
         imageUrl: data.imageUrl,
@@ -166,9 +172,13 @@ export const getTransactions = async (
         amount: data.amount,
         category: data.category,
         description: data.description,
-        paymentMethod: data.paymentMethod,
+        paymentMethod: normalizePaymentMethod(data.paymentMethod), // 正規化
         isIncome: data.isIncome,
         advance: data.advance,
+        transfer: data.transfer ? {
+          from: normalizePaymentMethod(data.transfer.from), // 正規化
+          to: normalizePaymentMethod(data.transfer.to), // 正規化
+        } : undefined,
         calendar: data.calendar,
         ai: data.ai,
         imageUrl: data.imageUrl,
@@ -221,6 +231,9 @@ export const updateTransaction = async (
     }
     if (data.advance !== undefined) {
       updateData.advance = data.advance;
+    }
+    if (data.transfer !== undefined) {
+      updateData.transfer = data.transfer;
     }
     if (data.calendarEventId !== undefined) {
       updateData.calendar = { eventId: data.calendarEventId };

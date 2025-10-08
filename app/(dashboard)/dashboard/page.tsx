@@ -5,7 +5,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import {
   useAuth,
   useTransactions,
@@ -16,7 +15,7 @@ import { DashboardTemplate } from "@/components/templates";
 import {
   PageHeader,
   MonthlyStatsCards,
-  TransactionList,
+  BalanceChart,
   TransactionFormNew,
   BatchImageRecognitionDialog,
   PaymentMethodBalances,
@@ -26,7 +25,6 @@ import {
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import {
   calculatePeriodStats,
-  getRecentTransactions,
   transformFormDataToTransaction,
   getCurrentMonthRange,
   getLastThirtyDaysRange,
@@ -34,20 +32,17 @@ import {
   getLastYearRange,
   PeriodType,
   calculatePaymentMethodBalances,
-  mergeTransactionsAndAdjustments,
   isTransferTransaction,
+  ChartPeriodType,
 } from "@/lib/helpers";
 import { calculateActualExpense } from "@/lib/helpers/advance";
 import type { TransactionInput, PaymentMethodValue } from "@/types/transaction";
-import {
-  createBalanceAdjustment,
-  deleteBalanceAdjustment,
-} from "@/lib/firebase";
+import { createBalanceAdjustment } from "@/lib/firebase";
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { user } = useAuth();
-  const { transactions, loading, createTransaction } = useTransactions();
+  const { transactions, loading, createTransaction, fetchTransactions } =
+    useTransactions();
   const { balance } = useAdvance();
   const { adjustments } = useBalanceAdjustments();
   const [formOpen, setFormOpen] = useState(false);
@@ -58,6 +53,7 @@ export default function DashboardPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethodValue | null>(null);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriodType>("month");
 
   // 期間に応じた日付範囲を取得
   const dateRange = useMemo(() => {
@@ -151,23 +147,6 @@ export default function DashboardPage() {
     return undefined;
   }, [transactions, dateRange]);
 
-  // 取引と残高調整を統合
-  const allTransactions = useMemo(() => {
-    console.log("🔄 Merging transactions and adjustments:", {
-      transactionsCount: transactions.length,
-      adjustmentsCount: adjustments.length,
-    });
-    const merged = mergeTransactionsAndAdjustments(transactions, adjustments);
-    console.log("✅ Merged transactions:", merged.length);
-    return merged;
-  }, [transactions, adjustments]);
-
-  // 最近の取引（画面に収まる分だけ表示：3件）
-  const recentTransactions = useMemo(
-    () => getRecentTransactions(allTransactions, 3),
-    [allTransactions]
-  );
-
   // 決済手段別の残高を計算（最終確認基準）
   const paymentMethodBalances = useMemo(() => {
     console.log("💰 Calculating payment method balances:", {
@@ -224,10 +203,15 @@ export default function DashboardPage() {
               }
             : undefined,
           memo: data.memo || "",
+          imageUrl: data.imageUrl, // 画像URLを保持
+          ai: data.ai, // AI情報を保持
         };
         const transactionData = transformFormDataToTransaction(formData);
         await createTransaction(transactionData);
       }
+
+      // 一括登録完了後、トランザクションリストを再取得してグラフに反映
+      await fetchTransactions();
     } catch (error) {
       console.error("一括登録エラー:", error);
       throw error;
@@ -264,18 +248,6 @@ export default function DashboardPage() {
   const handlePaymentMethodClick = (paymentMethod: string) => {
     setSelectedPaymentMethod(paymentMethod as PaymentMethodValue);
     setBalanceAdjustmentOpen(true);
-  };
-
-  // 削除処理
-  const handleDelete = async (id: string) => {
-    // 残高確認/修正の場合は、IDから残高調整IDを抽出して削除
-    if (id.startsWith("adjustment-")) {
-      const adjustmentId = id.replace("adjustment-", "");
-      await deleteBalanceAdjustment(adjustmentId);
-      // ページをリロードして最新データを取得
-      window.location.reload();
-    }
-    // ダッシュボードでは通常の取引の削除はしない（取引一覧ページで行う）
   };
 
   // 振替登録
@@ -335,20 +307,26 @@ export default function DashboardPage() {
         onPeriodChange={setSelectedPeriod}
       />
 
-      {/* 決済手段別残高 */}
-      <PaymentMethodBalances
-        balances={paymentMethodBalances}
-        onBalanceClick={handlePaymentMethodClick}
-      />
+      {/* デスクトップ：2カラムレイアウト、モバイル：縦積み */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* 左カラム：決済手段別残高 */}
+        <div className="space-y-4">
+          <PaymentMethodBalances
+            balances={paymentMethodBalances}
+            onBalanceClick={handlePaymentMethodClick}
+          />
+        </div>
 
-      <TransactionList
-        title="最近の取引"
-        transactions={recentTransactions}
-        loading={loading}
-        onAddClick={() => setFormOpen(true)}
-        onViewAllClick={() => router.push("/transactions")}
-        onDelete={handleDelete}
-      />
+        {/* 右カラム：残高推移グラフ */}
+        <div className="space-y-4">
+          <BalanceChart
+            transactions={transactions}
+            adjustments={adjustments}
+            period={chartPeriod}
+            onPeriodChange={setChartPeriod}
+          />
+        </div>
+      </div>
 
       <TransactionFormNew
         open={formOpen}

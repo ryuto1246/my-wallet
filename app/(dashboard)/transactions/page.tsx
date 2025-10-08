@@ -5,28 +5,40 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTransactions, useBalanceAdjustments } from "@/hooks";
-import { deleteBalanceAdjustment } from "@/lib/firebase";
+import { useTransactions, useBalanceAdjustments, useAuth } from "@/hooks";
+import {
+  deleteBalanceAdjustment,
+  createBalanceAdjustment,
+} from "@/lib/firebase";
 import { DashboardTemplate } from "@/components/templates";
 import {
   PageHeader,
   TransactionList,
   TransactionFormNew,
   BatchImageRecognitionDialog,
+  TransferFormDialog,
+  BalanceAdjustmentDialog,
 } from "@/components/organisms";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import {
   transformFormDataToTransaction,
   mergeTransactionsAndAdjustments,
+  calculatePaymentMethodBalances,
 } from "@/lib/helpers";
-import type { TransactionInput } from "@/types/transaction";
+import type { TransactionInput, PaymentMethodValue } from "@/types/transaction";
 
 export default function TransactionsPage() {
+  const { user } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
   const [batchImageDialogOpen, setBatchImageDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [balanceAdjustmentOpen, setBalanceAdjustmentOpen] = useState(false);
   const [editingTransactionId, setEditingTransactionId] = useState<
     string | null
   >(null);
+  const [editingAdjustmentId, setEditingAdjustmentId] = useState<string | null>(
+    null
+  );
   const {
     transactions,
     loading,
@@ -39,6 +51,11 @@ export default function TransactionsPage() {
   // 取引と残高調整を統合
   const allTransactions = useMemo(() => {
     return mergeTransactionsAndAdjustments(transactions, adjustments);
+  }, [transactions, adjustments]);
+
+  // 決済手段別の残高を計算（編集モード用）
+  const paymentMethodBalances = useMemo(() => {
+    return calculatePaymentMethodBalances(transactions, adjustments);
   }, [transactions, adjustments]);
 
   const handleSubmit = async (data: TransactionFormValues) => {
@@ -111,6 +128,23 @@ export default function TransactionsPage() {
 
   // 編集処理
   const handleEdit = (id: string) => {
+    // 残高確認/修正の場合
+    if (id.startsWith("adjustment-")) {
+      const adjustmentId = id.replace("adjustment-", "");
+      setEditingAdjustmentId(adjustmentId);
+      setBalanceAdjustmentOpen(true);
+      return;
+    }
+
+    // 振替の場合
+    const transaction = transactions.find((t) => t.id === id);
+    if (transaction?.transfer) {
+      setEditingTransactionId(id);
+      setTransferDialogOpen(true);
+      return;
+    }
+
+    // 通常の取引
     setEditingTransactionId(id);
     setFormOpen(true);
   };
@@ -123,14 +157,114 @@ export default function TransactionsPage() {
     }
   };
 
+  // 振替ダイアログを閉じるときに編集モードをリセット
+  const handleTransferDialogClose = (open: boolean) => {
+    setTransferDialogOpen(open);
+    if (!open) {
+      setEditingTransactionId(null);
+    }
+  };
+
+  // 残高調整ダイアログを閉じるときに編集モードをリセット
+  const handleBalanceAdjustmentClose = (open: boolean) => {
+    setBalanceAdjustmentOpen(open);
+    if (!open) {
+      setEditingAdjustmentId(null);
+    }
+  };
+
   // 編集中の取引データを取得
   const editingTransaction = editingTransactionId
     ? transactions.find((t) => t.id === editingTransactionId)
     : null;
 
-  // フォームのデフォルト値
+  // 振替登録・更新
+  const handleTransferSubmit = async (data: {
+    date: Date;
+    amount: number;
+    from: string;
+    to: string;
+    description: string;
+    memo?: string;
+  }) => {
+    try {
+      const formData: TransactionFormValues = {
+        date: data.date,
+        amount: data.amount,
+        categoryMain: "振替",
+        categorySub: "口座間振替",
+        description: data.description,
+        paymentMethod: data.from, // 振替元を支払い方法とする
+        isIncome: false,
+        isTransfer: true,
+        hasAdvance: false,
+        transfer: {
+          from: data.from as PaymentMethodValue,
+          to: data.to as PaymentMethodValue,
+        },
+        memo: data.memo || "",
+      };
+      const transactionData = transformFormDataToTransaction(formData);
+
+      if (editingTransactionId) {
+        // 編集モード
+        await updateTransaction(editingTransactionId, transactionData);
+        setEditingTransactionId(null);
+      } else {
+        // 新規作成モード
+        await createTransaction(transactionData);
+      }
+    } catch (error) {
+      console.error("振替登録・更新エラー:", error);
+      throw error;
+    }
+  };
+
+  // 残高確認/修正
+  const handleBalanceAdjustment = async (
+    actualBalance: number,
+    memo: string
+  ) => {
+    if (!user?.id) return;
+
+    // 編集中の調整を取得
+    const editingAdjustment = editingAdjustmentId
+      ? adjustments.find((a) => a.id === editingAdjustmentId)
+      : null;
+
+    if (!editingAdjustment) return;
+
+    try {
+      // 既存の調整を削除して新しい調整を作成
+      await deleteBalanceAdjustment(editingAdjustmentId!);
+
+      const balance = paymentMethodBalances.find(
+        (b) => b.paymentMethod === editingAdjustment.paymentMethod
+      );
+
+      await createBalanceAdjustment(
+        user.id,
+        {
+          date: editingAdjustment.date,
+          paymentMethod: editingAdjustment.paymentMethod,
+          actualBalance,
+          memo,
+        },
+        balance?.balance || 0
+      );
+
+      setEditingAdjustmentId(null);
+      // ページをリロードして最新データを取得
+      window.location.reload();
+    } catch (error) {
+      console.error("残高確認/修正エラー:", error);
+      throw error;
+    }
+  };
+
+  // 通常のフォームのデフォルト値（振替以外）
   const formDefaultValues: Partial<TransactionFormValues> | undefined =
-    editingTransaction
+    editingTransaction && !editingTransaction.transfer
       ? {
           date: editingTransaction.date,
           amount: editingTransaction.amount,
@@ -161,6 +295,30 @@ export default function TransactionsPage() {
         }
       : undefined;
 
+  // 振替フォームのデフォルト値
+  const transferDefaultValues = editingTransaction?.transfer
+    ? {
+        date: editingTransaction.date,
+        amount: editingTransaction.amount,
+        from: editingTransaction.transfer.from,
+        to: editingTransaction.transfer.to,
+        description: editingTransaction.description,
+        memo: editingTransaction.memo || "",
+      }
+    : undefined;
+
+  // 残高調整のデフォルト値
+  const editingAdjustment = editingAdjustmentId
+    ? adjustments.find((a) => a.id === editingAdjustmentId)
+    : null;
+
+  const adjustmentPaymentMethod = editingAdjustment?.paymentMethod || null;
+  const adjustmentExpectedBalance = editingAdjustment
+    ? paymentMethodBalances.find(
+        (b) => b.paymentMethod === editingAdjustment.paymentMethod
+      )?.balance || 0
+    : 0;
+
   return (
     <DashboardTemplate>
       <PageHeader
@@ -169,6 +327,8 @@ export default function TransactionsPage() {
         onAddClick={() => setFormOpen(true)}
         showImageButton
         onImageClick={() => setBatchImageDialogOpen(true)}
+        showTransferButton
+        onTransferClick={() => setTransferDialogOpen(true)}
       />
 
       <TransactionList
@@ -197,6 +357,24 @@ export default function TransactionsPage() {
         open={batchImageDialogOpen}
         onOpenChange={setBatchImageDialogOpen}
         onBatchSubmit={handleBatchSubmit}
+      />
+
+      <TransferFormDialog
+        key={editingTransactionId || "new-transfer"}
+        open={transferDialogOpen}
+        onOpenChange={handleTransferDialogClose}
+        onSubmit={handleTransferSubmit}
+        defaultValues={transferDefaultValues}
+        mode={editingTransactionId ? "edit" : "create"}
+      />
+
+      <BalanceAdjustmentDialog
+        key={editingAdjustmentId || "new-adjustment"}
+        open={balanceAdjustmentOpen}
+        onOpenChange={handleBalanceAdjustmentClose}
+        paymentMethod={adjustmentPaymentMethod}
+        expectedBalance={adjustmentExpectedBalance}
+        onSubmit={handleBalanceAdjustment}
       />
     </DashboardTemplate>
   );

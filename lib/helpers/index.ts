@@ -6,6 +6,7 @@ export * from "./transaction";
 export * from "./format";
 export * from "./date";
 export * from "./advance";
+export * from "./balance-chart";
 export * from "./duplicate-detection";
 export * from "./time";
 export * from "./payment";
