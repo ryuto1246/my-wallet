@@ -27,7 +27,6 @@ import { useAISuggestion, useImageRecognition } from "@/hooks";
 import {
   SuggestionCarousel,
   TransactionAmountInput,
-  AdvanceTypeSelector,
 } from "@/components/molecules";
 import { saveUserCorrection } from "@/lib/firebase/ai-learning";
 import { useAuth } from "@/hooks";
@@ -198,7 +197,7 @@ export function TransactionFormNew({
     const timer = setTimeout(() => {
       getMultipleSuggestions(keyword, {
         amount,
-        paymentMethod,
+        paymentMethod: paymentMethod as PaymentMethodValue | undefined,
         // isIncomeはAIに判定させるので送らない
       });
     }, 500); // デバウンス
@@ -422,15 +421,11 @@ export function TransactionFormNew({
               </div>
             )}
 
-            {/* 上部: 金額とキーワード入力欄 */}
+            {/* 上部: 金額とキーワード入力欄 + 立替タイプ選択 */}
             <TransactionAmountInput
               control={form.control}
               keyword={keyword}
               onKeywordChange={setKeyword}
-            />
-
-            {/* 支払いタイプ選択 */}
-            <AdvanceTypeSelector
               setValue={form.setValue}
               getValues={form.getValues}
               watch={form.watch}

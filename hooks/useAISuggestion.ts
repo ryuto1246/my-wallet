@@ -40,7 +40,7 @@ export const useAISuggestion = () => {
             inputText,
             {
               amount: context.amount || 0,
-              paymentMethod: context.paymentMethod || '',
+              paymentMethod: context.paymentMethod || 'cash',
               timeOfDay,
               dayOfWeek,
             }
@@ -110,7 +110,7 @@ export const useAISuggestion = () => {
             inputText,
             {
               amount: context.amount || 0,
-              paymentMethod: context.paymentMethod || '',
+              paymentMethod: context.paymentMethod || 'cash',
               timeOfDay,
               dayOfWeek,
             }

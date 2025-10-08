@@ -8,6 +8,7 @@ import { createImagePart, extractJsonFromResponse } from './utils';
 import {
   CATEGORY_LIST_PROMPT,
   PAYMENT_SERVICE_HINT_PROMPT,
+  STORE_TO_PURPOSE_MAPPING,
   DESCRIPTION_TEMPLATE_BASIC_PROMPT,
   buildServiceHintPrompt,
 } from './prompts';
@@ -82,20 +83,22 @@ function buildRecognitionPrompt(options: OCROptions): string {
 
   return `
 この画像は決済アプリ（スマホ決済・銀行アプリなど）のスクリーンショットです。
-画像から以下の情報を抽出し、JSON形式で回答してください。${serviceHint}
+画像から取引情報を抽出し、JSON形式で回答してください。${serviceHint}
 
-抽出する情報:
+**【ステップ1】画像から以下を抽出:**
 1. paymentService: 決済サービスの種類（olive, sony, dpayment, dcard, paypay, cash, unknown のいずれか）
 2. date: 取引日時（ISO 8601形式、例: 2025-10-08T14:30:00+09:00）
 3. amount: 金額（数値のみ、カンマや円記号は不要）
-4. merchantName: **構造化された項目名**（後述のテンプレートに従う）
+4. merchantName: 店舗名・サービス名
 5. confidence: 認識の信頼度（0.0-1.0の範囲）
-6. suggestedCategory: 推測されるカテゴリー（mainとsubを含むオブジェクト）
-7. metadata: 追加情報（paymentMethod, location, transactionIdなど）
+
+**【ステップ2】店舗名から用途を推測し、項目名を生成:**
+${STORE_TO_PURPOSE_MAPPING}
+
+**【ステップ3】カテゴリーを選択:**
+${CATEGORY_LIST_PROMPT}
 
 ${PAYMENT_SERVICE_HINT_PROMPT}
-
-${CATEGORY_LIST_PROMPT}
 
 ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
 
@@ -104,8 +107,8 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
   "paymentService": "olive",
   "date": "2025-10-08T14:30:00+09:00",
   "amount": 1500,
-  "merchantName": "??（セブンイレブン）で買い物",
-  "confidence": 0.95,
+  "merchantName": "コンビニ（セブンイレブン）で買い物",
+  "confidence": 0.85,
   "suggestedCategory": {
     "main": "食費",
     "sub": "コンビニ"
@@ -118,12 +121,11 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
 
 注意事項:
 - JSONのみを返してください（説明文は不要）
-- 情報が不明な場合は「??」を使用してください（nullではなく）
-- merchantNameは必ずテンプレートに従った形式で生成してください
+- **merchantNameは必ず店舗名マッピングとテンプレート原則に従って生成（「??」は使用禁止）**
 - 金額は必ず数値型で返してください
-- confidenceは認識の確実性を0.0-1.0で評価してください
+- confidenceは認識の確実性を0.0-1.0で評価（画像が鮮明なら0.85以上、店舗名が明確なら0.8以上）
 - 日付のフォーマットは必ずISO 8601形式にしてください
-- スクリーンショットで情報が切れている場合は推測せず「??」を使用してください
+- カテゴリーは必ず上記リストから完全一致で選択してください
 `;
 }
 

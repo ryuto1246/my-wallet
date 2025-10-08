@@ -12,6 +12,5 @@ export { ImagePreview } from "./ImagePreview";
 export { PaymentMethodBalanceCard } from "./PaymentMethodBalanceCard";
 export type { PaymentMethodBalance } from "./PaymentMethodBalanceCard";
 export { TransactionAmountInput } from "./TransactionAmountInput";
-export { AdvanceTypeSelector } from "./AdvanceTypeSelector";
 export { RecognizedTransactionItem } from "./RecognizedTransactionItem";
 
