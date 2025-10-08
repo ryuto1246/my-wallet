@@ -6,7 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Check, AlertTriangle, Pencil } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +24,12 @@ import {
 import { Label } from "@/components/ui/label";
 import { ImageUploadZone } from "@/components/organisms/ImageUploadZone";
 import { TransactionFormNew } from "@/components/organisms";
-import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/helpers/format";
+import { RecognizedTransactionItem } from "@/components/molecules";
 import { useAuth, useTransactions } from "@/hooks";
 import { recognizeBatchTransactionsFromImage } from "@/lib/gemini/batch-vision";
 import { uploadTransactionImage } from "@/lib/firebase/storage";
 import { batchDetectDuplicates } from "@/lib/helpers/duplicate-detection";
+import { getPaymentMethodFromService } from "@/lib/helpers";
 import type {
   RecognizedTransaction,
   PaymentService,
@@ -405,143 +405,16 @@ export function BatchImageRecognitionDialog({
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {recognitionItems.map((item, index) => (
-                  <div
+                  <RecognizedTransactionItem
                     key={index}
-                    className={`p-4 border rounded-lg transition-all hover:shadow-md ${
-                      item.isDuplicate
-                        ? "border-yellow-300 bg-yellow-50/50"
-                        : item.selected
-                        ? "border-primary bg-primary/5"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* チェックボックス */}
-                      <div className="pt-1">
-                        <input
-                          type="checkbox"
-                          checked={item.selected}
-                          onChange={() => toggleSelection(index)}
-                          className="w-5 h-5 rounded border-gray-300"
-                        />
-                      </div>
-
-                      {/* 取引情報 */}
-                      <div className="flex-1 flex items-center justify-between">
-                        <div className="flex-1">
-                          {/* 店舗名とバッジ */}
-                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                            <h3 className="font-bold text-base text-gray-900">
-                              {item.transaction.merchantName || "不明"}
-                            </h3>
-                            {item.isDuplicate && (
-                              <Badge
-                                variant="outline"
-                                className="rounded-full px-2.5 py-0.5 text-xs font-semibold text-yellow-700 border-yellow-400 bg-yellow-50"
-                              >
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                重複
-                              </Badge>
-                            )}
-                            {item.transaction.confidence && (
-                              <Badge
-                                variant={
-                                  item.transaction.confidence >= 0.8
-                                    ? "default"
-                                    : "secondary"
-                                }
-                                className="rounded-full px-2.5 py-0.5 text-xs backdrop-blur-sm font-semibold"
-                              >
-                                {Math.round(item.transaction.confidence * 100)}%
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* 日付・カテゴリー - 小さなバッジ */}
-                          <div className="flex items-center gap-2 text-xs text-gray-700 flex-wrap font-medium">
-                            <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
-                              {item.transaction.date
-                                ? formatDate(item.transaction.date)
-                                : "不明"}
-                            </span>
-                            {item.transaction.suggestedCategory && (
-                              <span className="px-2.5 py-0.5 rounded-full bg-white/70 backdrop-blur-md border border-white/50">
-                                {item.transaction.suggestedCategory.main} /{" "}
-                                {item.transaction.suggestedCategory.sub}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* 重複理由と類似取引 */}
-                          {item.isDuplicate && (
-                            <div className="mt-3 space-y-2">
-                              {item.duplicateReason && (
-                                <p className="text-xs text-yellow-700 font-medium">
-                                  {item.duplicateReason}
-                                </p>
-                              )}
-
-                              {/* 類似している既存取引 */}
-                              {item.matchingTransactions &&
-                                item.matchingTransactions.length > 0 && (
-                                  <div className="space-y-2">
-                                    {item.matchingTransactions.map((match) => (
-                                      <div
-                                        key={match.id}
-                                        className="p-2 rounded-lg bg-yellow-50/80 border border-yellow-200"
-                                      >
-                                        <div className="flex items-center justify-between gap-2">
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-semibold text-gray-800 truncate">
-                                              {match.description}
-                                            </p>
-                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                              <span className="text-[10px] text-gray-600">
-                                                {formatDate(match.date)}
-                                              </span>
-                                              <span className="text-[10px] text-gray-400">
-                                                •
-                                              </span>
-                                              <span className="text-[10px] text-gray-600">
-                                                {match.category.main} /{" "}
-                                                {match.category.sub}
-                                              </span>
-                                            </div>
-                                          </div>
-                                          <div className="text-xs font-bold text-gray-800 whitespace-nowrap">
-                                            ¥{match.amount.toLocaleString()}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 金額と編集ボタン - 右側 */}
-                        <div className="flex items-center gap-3 ml-4">
-                          <div className="text-right">
-                            <div className="text-xl font-bold text-gray-900">
-                              {item.transaction.amount !== null
-                                ? `¥${item.transaction.amount.toLocaleString()}`
-                                : "不明"}
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleItemClick(index)}
-                            className="rounded-xl h-9 w-9 hover:bg-blue-50 hover:text-blue-600 transition-colors flex-shrink-0"
-                            title="編集"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    transaction={item.transaction}
+                    selected={item.selected}
+                    isDuplicate={item.isDuplicate}
+                    duplicateReason={item.duplicateReason}
+                    matchingTransactions={item.matchingTransactions}
+                    onToggleSelect={() => toggleSelection(index)}
+                    onEdit={() => handleItemClick(index)}
+                  />
                 ))}
               </div>
 
@@ -593,19 +466,4 @@ export function BatchImageRecognitionDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-/**
- * 決済サービスから決済方法を取得
- */
-function getPaymentMethodFromService(service: string): string {
-  const methodMap: Record<string, string> = {
-    olive: "三井住友 OLIVE",
-    sony: "ソニー銀行",
-    dpayment: "d払い",
-    dcard: "dカード",
-    paypay: "PayPay",
-    cash: "現金",
-  };
-  return methodMap[service] || "その他";
 }

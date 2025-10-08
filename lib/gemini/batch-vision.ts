@@ -4,6 +4,8 @@
  */
 
 import { getGeminiModel } from './config';
+import { createImagePart, extractJsonFromResponse } from './utils';
+import { buildServiceHintPrompt } from './prompts';
 import type {
   RecognizedTransaction,
   RawRecognitionData,
@@ -27,14 +29,8 @@ export async function recognizeBatchTransactionsFromImage(
       throw new Error('Gemini APIが利用できません。APIキーを設定してください。');
     }
 
-    // 画像をBase64に変換
-    const imageBase64 = await fileToBase64(imageFile);
-    const imagePart = {
-      inlineData: {
-        data: imageBase64.split(',')[1],
-        mimeType: imageFile.type,
-      },
-    };
+    // 画像パートを作成
+    const imagePart = await createImagePart(imageFile);
 
     // プロンプトを構築
     const prompt = buildBatchRecognitionPrompt(options);
@@ -55,24 +51,10 @@ export async function recognizeBatchTransactionsFromImage(
 }
 
 /**
- * ファイルをBase64に変換
- */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
  * 一括認識用のプロンプトを構築
  */
 function buildBatchRecognitionPrompt(options: OCROptions): string {
-  const serviceHint = options.serviceHint
-    ? `\n決済サービスのヒント: ${getServiceName(options.serviceHint)}`
-    : '';
+  const serviceHint = buildServiceHintPrompt(options.serviceHint);
 
   return `
 この画像は決済アプリの取引リスト（複数の取引が表示されている画面）のスクリーンショットです。
@@ -231,16 +213,14 @@ function buildBatchRecognitionPrompt(options: OCROptions): string {
  */
 function parseBatchRecognitionResponse(responseText: string): RecognizedTransaction[] {
   try {
-    // JSONブロックを抽出（マークダウン形式の場合に対応）
-    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) ||
-                      responseText.match(/\[[\s\S]*?\]/);
+    // JSONブロックを抽出
+    const jsonText = extractJsonFromResponse(responseText);
     
-    if (!jsonMatch) {
+    if (!jsonText) {
       console.warn('JSON形式のレスポンスが見つかりませんでした');
       return [];
     }
 
-    const jsonText = jsonMatch[1] || jsonMatch[0];
     const parsedArray = JSON.parse(jsonText);
 
     if (!Array.isArray(parsedArray)) {
@@ -278,21 +258,5 @@ function parseBatchRecognitionResponse(responseText: string): RecognizedTransact
     console.error('レスポンステキスト:', responseText);
     return [];
   }
-}
-
-/**
- * 決済サービス名を取得
- */
-function getServiceName(service: string): string {
-  const serviceNames: Record<string, string> = {
-    olive: '三井住友OLIVE',
-    sony: 'ソニー銀行',
-    dpayment: 'd払い',
-    dcard: 'dカード',
-    paypay: 'PayPay',
-    cash: '現金',
-    unknown: '不明',
-  };
-  return serviceNames[service] || '不明';
 }
 

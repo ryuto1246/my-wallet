@@ -7,17 +7,9 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar as CalendarIcon, CreditCard } from "lucide-react";
-import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import {
   Dialog,
   DialogContent,
@@ -30,14 +22,22 @@ import {
   transactionFormSchema,
   TransactionFormValues,
 } from "@/lib/validations/transaction";
-import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 import type { PaymentMethodValue } from "@/types/transaction";
 import { useAISuggestion, useImageRecognition } from "@/hooks";
-import { SuggestionCarousel } from "@/components/molecules";
+import {
+  SuggestionCarousel,
+  TransactionAmountInput,
+  AdvanceTypeSelector,
+} from "@/components/molecules";
 import { saveUserCorrection } from "@/lib/firebase/ai-learning";
 import { useAuth } from "@/hooks";
 import { ImageUploadZone, RecognitionResultCard } from "@/components/organisms";
 import type { ImageRecognitionResult } from "@/types/image-recognition";
+import {
+  getTimeOfDay,
+  getDayOfWeek,
+  getPaymentMethodFromService,
+} from "@/lib/helpers";
 
 interface TransactionFormNewProps {
   open: boolean;
@@ -48,28 +48,6 @@ interface TransactionFormNewProps {
   enableImageInput?: boolean;
   onImageInputToggle?: (enabled: boolean) => void;
 }
-
-const getTimeOfDay = (): string => {
-  const hour = new Date().getHours();
-
-  if (hour >= 5 && hour < 12) return "morning";
-  if (hour >= 12 && hour < 17) return "afternoon";
-  if (hour >= 17 && hour < 21) return "evening";
-  return "night";
-};
-
-const getDayOfWeek = (): string => {
-  const days = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ];
-  return days[new Date().getDay()];
-};
 
 export function TransactionFormNew({
   open,
@@ -269,17 +247,10 @@ export function TransactionFormNew({
     }
 
     // 決済方法（サービスから推測）
-    const paymentMethodMap: Record<string, string> = {
-      olive: "三井住友 OLIVE",
-      sony: "ソニー銀行",
-      dpayment: "d払い",
-      dcard: "dカード",
-      paypay: "PayPay",
-      cash: "現金",
-    };
-
-    const mappedPaymentMethod = paymentMethodMap[transaction.paymentService];
-    if (mappedPaymentMethod) {
+    const mappedPaymentMethod = getPaymentMethodFromService(
+      transaction.paymentService
+    );
+    if (mappedPaymentMethod !== "その他") {
       form.setValue("paymentMethod", mappedPaymentMethod, {
         shouldValidate: true,
       });
@@ -451,223 +422,20 @@ export function TransactionFormNew({
               </div>
             )}
 
-            {/* 上部: 金額とキーワード入力欄 - 象徴的デザイン */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
-              {/* 装飾的な背景要素 */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-200 rounded-full filter blur-3xl opacity-20 animate-pulse"></div>
-              <div
-                className="absolute bottom-0 left-0 w-48 h-48 bg-blue-200 rounded-full filter blur-3xl opacity-20 animate-pulse"
-                style={{ animationDelay: "1s" }}
-              ></div>
+            {/* 上部: 金額とキーワード入力欄 */}
+            <TransactionAmountInput
+              control={form.control}
+              keyword={keyword}
+              onKeywordChange={setKeyword}
+            />
 
-              <div className="relative space-y-8">
-                {/* 日付と決済手段 - 上部にコンパクトに */}
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <CalendarIcon className="h-5 w-5 text-gray-500" />
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <input
-                              type="date"
-                              className="bg-white/60 backdrop-blur-sm border-0 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
-                              value={
-                                field.value
-                                  ? format(field.value, "yyyy-MM-dd")
-                                  : ""
-                              }
-                              onChange={(e) =>
-                                field.onChange(
-                                  e.target.value
-                                    ? new Date(e.target.value)
-                                    : new Date()
-                                )
-                              }
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <CreditCard className="h-5 w-5 text-gray-500" />
-                    <FormField
-                      control={form.control}
-                      name="paymentMethod"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <select
-                              className="bg-white/60 backdrop-blur-sm border-0 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all cursor-pointer"
-                              value={field.value}
-                              onChange={(e) => field.onChange(e.target.value)}
-                            >
-                              <option value="">選択してください</option>
-                              {PAYMENT_METHODS.map((method) => (
-                                <option key={method.value} value={method.value}>
-                                  {method.label}
-                                </option>
-                              ))}
-                            </select>
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                {/* 金額入力 - 中央・大きく */}
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-3">
-                            <span className="text-4xl font-medium text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500 self-center">
-                              ¥
-                            </span>
-                            <input
-                              type="text"
-                              placeholder="0"
-                              className="font-bold text-center border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none rounded-none px-2 placeholder:text-gray-300 text-gray-800 hover:text-indigo-600 focus:text-purple-600 transition-colors"
-                              style={{
-                                fontSize: "4.5rem",
-                                lineHeight: "1.1",
-                                width: "auto",
-                                minWidth: "120px",
-                                maxWidth: "400px",
-                              }}
-                              value={
-                                field.value
-                                  ? field.value.toLocaleString("ja-JP")
-                                  : ""
-                              }
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/,/g, "");
-                                const numValue =
-                                  value === "" ? 0 : Number(value);
-                                if (!isNaN(numValue)) {
-                                  field.onChange(numValue);
-                                }
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* キーワード入力 - 下部 */}
-                <div className="text-center">
-                  <input
-                    type="text"
-                    placeholder="何に使いましたか？"
-                    className="text-center border-0 bg-transparent focus:outline-none rounded-none px-6 font-medium placeholder:text-gray-400 text-gray-800 hover:text-indigo-600 focus:text-purple-600 transition-colors w-full"
-                    style={{ fontSize: "1.5rem", lineHeight: "1.3" }}
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                  />
-                </div>
-
-                {/* 支払いタイプ選択 */}
-                <div className="flex justify-center">
-                  <div className="inline-flex gap-2 bg-white/60 backdrop-blur-sm rounded-xl p-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        form.setValue("hasAdvance", false);
-                        form.setValue("advance", undefined);
-                      }}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                        !form.watch("advance")?.type
-                          ? "bg-gray-800 text-white shadow-md"
-                          : "bg-transparent text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">💰</span>
-                        <span>自分</span>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        form.setValue("hasAdvance", true);
-                        const currentAdvance = form.getValues("advance");
-                        const totalAmount = amount || 0;
-                        if (!currentAdvance) {
-                          form.setValue("advance", {
-                            type: "parent",
-                            totalAmount: totalAmount,
-                            advanceAmount: totalAmount, // デフォルトで全額
-                            personalAmount: 0,
-                            memo: "",
-                          });
-                        } else {
-                          form.setValue("advance.type", "parent");
-                          // 立替金額が未設定の場合は全額に設定
-                          if (!currentAdvance.advanceAmount) {
-                            form.setValue("advance.advanceAmount", totalAmount);
-                            form.setValue("advance.personalAmount", 0);
-                          }
-                        }
-                      }}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                        form.watch("advance")?.type === "parent"
-                          ? "bg-green-500 text-white shadow-md"
-                          : "bg-transparent text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">👨‍👩‍👧</span>
-                        <span>親</span>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        form.setValue("hasAdvance", true);
-                        const currentAdvance = form.getValues("advance");
-                        const totalAmount = amount || 0;
-                        if (!currentAdvance) {
-                          form.setValue("advance", {
-                            type: "friend",
-                            totalAmount: totalAmount,
-                            advanceAmount: totalAmount, // デフォルトで全額
-                            personalAmount: 0,
-                            memo: "",
-                          });
-                        } else {
-                          form.setValue("advance.type", "friend");
-                          // 立替金額が未設定の場合は全額に設定
-                          if (!currentAdvance.advanceAmount) {
-                            form.setValue("advance.advanceAmount", totalAmount);
-                            form.setValue("advance.personalAmount", 0);
-                          }
-                        }
-                      }}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                        form.watch("advance")?.type === "friend"
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-transparent text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">👥</span>
-                        <span>友達</span>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* 支払いタイプ選択 */}
+            <AdvanceTypeSelector
+              setValue={form.setValue}
+              getValues={form.getValues}
+              watch={form.watch}
+              amount={amount}
+            />
 
             {/* AIサジェスチョン表示 */}
             {aiLoading && (

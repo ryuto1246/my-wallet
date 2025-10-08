@@ -4,10 +4,16 @@
  */
 
 import { getGeminiModel } from './config';
+import { createImagePart, extractJsonFromResponse } from './utils';
+import {
+  CATEGORY_LIST_PROMPT,
+  PAYMENT_SERVICE_HINT_PROMPT,
+  DESCRIPTION_TEMPLATE_BASIC_PROMPT,
+  buildServiceHintPrompt,
+} from './prompts';
 import type {
   RecognizedTransaction,
   RawRecognitionData,
-  PaymentService,
   OCROptions,
 } from '@/types/image-recognition';
 
@@ -28,14 +34,8 @@ export async function recognizeTransactionFromImage(
       throw new Error('Gemini APIが利用できません。APIキーを設定してください。');
     }
 
-    // 画像をBase64に変換
-    const imageBase64 = await fileToBase64(imageFile);
-    const imagePart = {
-      inlineData: {
-        data: imageBase64.split(',')[1], // data:image/...の部分を除く
-        mimeType: imageFile.type,
-      },
-    };
+    // 画像パートを作成
+    const imagePart = await createImagePart(imageFile);
 
     // プロンプトを構築
     const prompt = buildRecognitionPrompt(options);
@@ -75,24 +75,10 @@ export async function recognizeTransactionFromImage(
 }
 
 /**
- * ファイルをBase64に変換
- */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
  * 認識用のプロンプトを構築
  */
 function buildRecognitionPrompt(options: OCROptions): string {
-  const serviceHint = options.serviceHint
-    ? `\n決済サービスのヒント: ${getServiceName(options.serviceHint)}`
-    : '';
+  const serviceHint = buildServiceHintPrompt(options.serviceHint);
 
   return `
 この画像は決済アプリ（スマホ決済・銀行アプリなど）のスクリーンショットです。
@@ -107,59 +93,11 @@ function buildRecognitionPrompt(options: OCROptions): string {
 6. suggestedCategory: 推測されるカテゴリー（mainとsubを含むオブジェクト）
 7. metadata: 追加情報（paymentMethod, location, transactionIdなど）
 
-決済サービスの識別ヒント:
-- 「三井住友」「OLIVE」「SMBC」→ olive
-- 「ソニー銀行」「Sony Bank」→ sony
-- 「d払い」「dポイント」→ dpayment
-- 「dカード」「DCMX」→ dcard
-- 「PayPay」→ paypay
+${PAYMENT_SERVICE_HINT_PROMPT}
 
-カテゴリーの候補（main/sub）:
-- 収入: アルバイト、お小遣い、投資・配当、副業、ポイント還元、その他
-- 食費: スーパー、コンビニ、外食（ランチ）、外食（ディナー）、カフェ、デリバリー、その他
-- 日用品・生活費: 日用品、消耗品、その他
-- 交通費: 電車（定期内）、電車（定期外）、バス、タクシー、その他
-- 教育: 教科書、文房具、書籍、ソフトウェア、資格・セミナー、その他
-- 趣味: 映画・動画、ゲーム、音楽、旅行、その他
-- 衣料・美容: 衣類、靴・バッグ、美容院、化粧品、その他
-- 健康・医療: 病院、薬局、サプリメント、その他
-- 通信・サブスク: 携帯電話、インターネット、サブスク（動画）、サブスク（音楽）、その他
-- 住居: 家賃、水道光熱費、その他
-- 交際費: 飲み会、プレゼント、デート、その他
-- 仕事関連: 業務用品、交通費、会議費、その他
-- その他: 手数料、立替、その他
+${CATEGORY_LIST_PROMPT}
 
-**項目名のテンプレートルール（必ず守ること）:**
-
-項目名（merchantName）は以下の形式に従ってください。情報が不完全な場合は「??」で埋めてください。
-
-1. **食費（スーパー・コンビニ）**
-   - 形式: 「??（店舗名）で食材購入」または「??（店舗名）で買い物」
-   - 例: 「??（オオゼキ）で食材購入」「??（セブンイレブン）で買い物」
-
-2. **食費（外食）**
-   - 形式: 「店舗名で??」または「??（店舗名）」
-   - 例: 「タリーズで??」「??（すき家）」「マクドナルドでランチ」
-
-3. **交通費（電車・バス）**
-   - 形式: 「電車（路線名）：出発駅 → 到着駅」または「電車（??）：駅名 → ??」
-   - 例: 「電車（JR山手線）：渋谷 → 新宿」「電車（??）：渋谷 → ??」
-   - バスの場合: 「バス：乗車地 → 降車地」または「バス（??）」
-
-4. **サブスク・定期支払い**
-   - 形式: 「サービス名 月額料金」または「サービス名（??円）」
-   - 例: 「Netflix 月額料金」「Spotify（??円）」
-
-5. **その他の支払い**
-   - 形式: 「店舗名・サービス名（用途）」または「??（店舗名）」
-   - 例: 「ユニクロ（衣類購入）」「??（ドラッグストア）」
-
-**重要な注意事項:**
-- スクリーンショットに情報が不足している場合は、無理に推測せず「??」を使用してください
-- 店舗名が部分的にしか見えない場合: 「??（見えている部分）」
-- 駅名や路線が不明な場合: 「電車（??）：渋谷 → ??」
-- 金額が不明な場合: 「サービス名（??円）」
-- カテゴリーに応じた適切なテンプレートを選択してください
+${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
 
 回答形式（必ずこのJSON形式で回答してください）:
 {
@@ -194,15 +132,13 @@ function buildRecognitionPrompt(options: OCROptions): string {
  */
 function parseRecognitionResponse(responseText: string): Partial<RecognizedTransaction> {
   try {
-    // JSONブロックを抽出（マークダウン形式の場合に対応）
-    const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) ||
-                      responseText.match(/\{[\s\S]*\}/);
+    // JSONブロックを抽出
+    const jsonText = extractJsonFromResponse(responseText);
     
-    if (!jsonMatch) {
+    if (!jsonText) {
       throw new Error('JSON形式のレスポンスが見つかりませんでした');
     }
 
-    const jsonText = jsonMatch[1] || jsonMatch[0];
     const parsed = JSON.parse(jsonText);
 
     // 日付をDateオブジェクトに変換
@@ -224,22 +160,6 @@ function parseRecognitionResponse(responseText: string): Partial<RecognizedTrans
       merchantName: null,
     };
   }
-}
-
-/**
- * 決済サービス名を取得
- */
-function getServiceName(service: PaymentService): string {
-  const serviceNames: Record<PaymentService, string> = {
-    olive: '三井住友OLIVE',
-    sony: 'ソニー銀行',
-    dpayment: 'd払い',
-    dcard: 'dカード',
-    paypay: 'PayPay',
-    cash: '現金',
-    unknown: '不明',
-  };
-  return serviceNames[service] || '不明';
 }
 
 /**
@@ -277,14 +197,8 @@ export async function extractTextFromImage(imageFile: File): Promise<string> {
       throw new Error('Gemini APIが利用できません。');
     }
 
-    // 画像をBase64に変換
-    const imageBase64 = await fileToBase64(imageFile);
-    const imagePart = {
-      inlineData: {
-        data: imageBase64.split(',')[1],
-        mimeType: imageFile.type,
-      },
-    };
+    // 画像パートを作成
+    const imagePart = await createImagePart(imageFile);
 
     const prompt = 'この画像に含まれるすべてのテキストを抽出してください。';
 

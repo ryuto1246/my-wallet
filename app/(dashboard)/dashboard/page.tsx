@@ -291,8 +291,8 @@ export default function DashboardPage() {
         isTransfer: true,
         hasAdvance: false,
         transfer: {
-          from: data.from as any,
-          to: data.to as any,
+          from: data.from as PaymentMethodValue,
+          to: data.to as PaymentMethodValue,
         },
         memo: data.memo || "",
       };
