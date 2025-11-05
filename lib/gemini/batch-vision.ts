@@ -50,8 +50,25 @@ export async function recognizeBatchTransactionsFromImage(
     const transactions = parseBatchRecognitionResponse(text);
 
     return transactions;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('一括画像認識に失敗しました:', error);
+    
+    // レートリミットエラーの検出
+    const errorObj = error as { message?: string; status?: number; code?: number };
+    const errorMessage = errorObj?.message || '';
+    const errorStatus = errorObj?.status || errorObj?.code;
+    
+    if (
+      errorStatus === 429 ||
+      errorMessage.includes('quota') ||
+      errorMessage.includes('Quota exceeded') ||
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('Rate limit') ||
+      errorMessage.includes('RESOURCE_EXHAUSTED')
+    ) {
+      throw new Error('RATE_LIMIT_EXCEEDED');
+    }
+    
     throw new Error('画像から取引情報を認識できませんでした');
   }
 }

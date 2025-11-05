@@ -1,0 +1,377 @@
+/**
+ * トランザクション入力フォーム
+ */
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ja } from "date-fns/locale";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import {
+  transactionFormSchema,
+  TransactionFormValues,
+} from "@/lib/validations/transaction";
+import { CATEGORIES, getSubCategories } from "@/constants/categories";
+import { PAYMENT_METHODS } from "@/constants/paymentMethods";
+import { cn } from "@/lib/utils";
+
+interface TransactionFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: TransactionFormValues) => Promise<void>;
+  defaultValues?: Partial<TransactionFormValues>;
+  mode?: "create" | "edit";
+}
+
+export function TransactionForm({
+  open,
+  onOpenChange,
+  onSubmit,
+  defaultValues,
+  mode = "create",
+}: TransactionFormProps) {
+  const [loading, setLoading] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string>("");
+
+  const form = useForm<TransactionFormValues>({
+    resolver: zodResolver(transactionFormSchema),
+    defaultValues: {
+      date: new Date(),
+      amount: 0,
+      categoryMain: "",
+      categorySub: "",
+      description: "",
+      paymentMethod: "",
+      isIncome: false,
+      isTransfer: false,
+      hasAdvance: false,
+      memo: "",
+      ...defaultValues,
+    },
+  });
+
+  const isIncome = form.watch("isIncome");
+  const categoryMain = form.watch("categoryMain");
+
+  // メインカテゴリーが変更されたらサブカテゴリーをリセット
+  useEffect(() => {
+    if (categoryMain !== selectedMainCategory) {
+      form.setValue("categorySub", "");
+      setSelectedMainCategory(categoryMain);
+    }
+  }, [categoryMain, selectedMainCategory, form]);
+
+  const handleSubmit = async (data: TransactionFormValues) => {
+    setLoading(true);
+    try {
+      await onSubmit(data);
+      form.reset();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("フォーム送信エラー:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 収入/支出に応じたカテゴリーをフィルタリング
+  const availableCategories = CATEGORIES.filter(
+    (cat) => cat.isIncome === isIncome
+  );
+
+  // 選択されたメインカテゴリーのサブカテゴリーを取得
+  const subCategories = categoryMain ? getSubCategories(categoryMain) : [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "create" ? "新規取引を追加" : "取引を編集"}
+          </DialogTitle>
+          <DialogDescription>
+            {mode === "create"
+              ? "収支情報を入力してください"
+              : "取引情報を編集してください"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
+            {/* 収入/支出切り替え */}
+            <FormField
+              control={form.control}
+              name="isIncome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>種類</FormLabel>
+                  <FormControl>
+                    <Tabs
+                      value={field.value ? "income" : "expense"}
+                      onValueChange={(value) => {
+                        field.onChange(value === "income");
+                        form.setValue("categoryMain", "");
+                        form.setValue("categorySub", "");
+                      }}
+                    >
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="expense">支出</TabsTrigger>
+                        <TabsTrigger value="income">収入</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* 日付 */}
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>日付</FormLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !field.value && "text-muted-foreground"
+                    )}
+                    onClick={() => setShowCalendar(!showCalendar)}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {field.value ? (
+                      format(field.value, "PPP", { locale: ja })
+                    ) : (
+                      <span>日付を選択</span>
+                    )}
+                  </Button>
+                  {showCalendar && (
+                    <div className="absolute z-50 mt-2 rounded-md border bg-popover shadow-md">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={(date) => {
+                          field.onChange(date);
+                          setShowCalendar(false);
+                        }}
+                        initialFocus
+                      />
+                    </div>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 金額 */}
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>金額</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        ¥
+                      </span>
+                      <Input
+                        type="number"
+                        placeholder="1000"
+                        className="pl-8"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        value={field.value || ""}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* メインカテゴリー */}
+            <FormField
+              control={form.control}
+              name="categoryMain"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>メインカテゴリー</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="カテゴリーを選択" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {availableCategories.map((category) => (
+                        <SelectItem key={category.main} value={category.main}>
+                          {category.main}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* サブカテゴリー */}
+            <FormField
+              control={form.control}
+              name="categorySub"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>サブカテゴリー</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={!categoryMain}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            categoryMain
+                              ? "サブカテゴリーを選択"
+                              : "まずメインカテゴリーを選択"
+                          }
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {subCategories.map((sub) => (
+                        <SelectItem key={sub} value={sub}>
+                          {sub}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 項目名 */}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>項目名</FormLabel>
+                  <FormControl>
+                    <Input placeholder="例: スーパーで食材購入" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    具体的な内容を入力してください
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 決済方法 */}
+            <FormField
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>決済方法</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="決済方法を選択" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map((method) => (
+                        <SelectItem key={method.value} value={method.value}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* メモ（任意） */}
+            <FormField
+              control={form.control}
+              name="memo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>メモ（任意）</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="追加のメモがあれば入力してください"
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 送信ボタン */}
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                キャンセル
+              </Button>
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? "保存中..." : mode === "create" ? "追加" : "更新"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}

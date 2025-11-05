@@ -363,6 +363,19 @@ npm run build
 
 詳細は [README.md](./README.md) と [PROGRESS.md](./PROGRESS.md) を参照してください。
 
+## 🚀 本番環境へのデプロイ
+
+Vercel へのデプロイ方法は、以下のドキュメントを参照してください：
+
+👉 **[Vercel デプロイマニュアル](./docs/VERCEL_DEPLOYMENT.md)**
+
+このガイドでは、以下の内容を説明しています：
+
+- 環境変数の設定方法
+- Vercel Dashboard での設定手順
+- トラブルシューティング
+- セキュリティのベストプラクティス
+
 ## 📚 関連リンク
 
 - [Firebase Console](https://console.firebase.google.com/project/wallet-2029e)
@@ -370,6 +383,7 @@ npm run build
 - [Next.js Documentation](https://nextjs.org/docs)
 - [プロジェクト README](./README.md)
 - [進捗状況](./PROGRESS.md)
+- [Vercel デプロイマニュアル](./docs/VERCEL_DEPLOYMENT.md)
 
 ## ⚠️ 重要な注意事項
 

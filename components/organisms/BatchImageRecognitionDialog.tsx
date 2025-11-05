@@ -29,7 +29,10 @@ import { useAuth, useTransactions } from "@/hooks";
 import { recognizeBatchTransactionsFromImage } from "@/lib/gemini/batch-vision";
 import { uploadTransactionImage } from "@/lib/firebase/storage";
 import { batchDetectDuplicates } from "@/lib/helpers/duplicate-detection";
-import { getPaymentMethodFromService } from "@/lib/helpers";
+import {
+  getPaymentMethodFromService,
+  getPaymentServiceFromMethod,
+} from "@/lib/helpers";
 import type {
   RecognizedTransaction,
   PaymentService,
@@ -72,7 +75,7 @@ export function BatchImageRecognitionDialog({
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [recognitionItems, setRecognitionItems] = useState<RecognitionItem[]>(
     []
   );
@@ -80,41 +83,64 @@ export function BatchImageRecognitionDialog({
   const [editFormOpen, setEditFormOpen] = useState(false);
   const [selectedPaymentService, setSelectedPaymentService] =
     useState<PaymentService>("unknown");
+  const [recognitionProgress, setRecognitionProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
 
-  // 画像アップロードと認識
+  // 画像アップロードと認識（複数枚対応）
   const handleImageUpload = async (files: File[]) => {
     if (!user || files.length === 0) return;
 
-    const file = files[0]; // 最初の1枚のみ処理
     setIsRecognizing(true);
     setError(null);
+    setRecognitionProgress({ current: 0, total: files.length });
+
+    const allRecognizedTransactions: RecognizedTransaction[] = [];
+    const uploadedUrls: string[] = [];
 
     try {
-      // 1. Firebase Storageにアップロード
-      const uploadedUrl = await uploadTransactionImage(file, user.id);
-      setImageUrl(uploadedUrl);
+      // 各画像を順番に処理
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setRecognitionProgress({ current: i + 1, total: files.length });
 
-      // 2. 画像から複数の取引を認識
-      const recognizedTransactions = await recognizeBatchTransactionsFromImage(
-        file,
-        {
-          serviceHint:
-            selectedPaymentService !== "unknown"
-              ? selectedPaymentService
-              : undefined,
+        try {
+          // 1. Firebase Storageにアップロード
+          const uploadedUrl = await uploadTransactionImage(file, user.id);
+          uploadedUrls.push(uploadedUrl);
+
+          // 2. 画像から複数の取引を認識
+          const recognizedTransactions =
+            await recognizeBatchTransactionsFromImage(file, {
+              serviceHint:
+                selectedPaymentService !== "unknown"
+                  ? selectedPaymentService
+                  : undefined,
+            });
+
+          // 認識された取引を追加
+          allRecognizedTransactions.push(...recognizedTransactions);
+        } catch (err) {
+          console.error(`画像${i + 1}の認識エラー:`, err);
+          // エラーが発生した画像はスキップして続行
+          continue;
         }
-      );
+      }
 
-      if (recognizedTransactions.length === 0) {
+      // すべての画像URLを保存
+      setImageUrls(uploadedUrls);
+
+      if (allRecognizedTransactions.length === 0) {
         setError(
           "取引を認識できませんでした。画像が不鮮明か、取引リストが含まれていない可能性があります。"
         );
         return;
       }
 
-      // 3. 重複検出
+      // 3. 重複検出（すべての取引をまとめて）
       const { unique, duplicates } = batchDetectDuplicates(
-        recognizedTransactions,
+        allRecognizedTransactions,
         transactions,
         { threshold: 0.8 }
       );
@@ -155,9 +181,25 @@ export function BatchImageRecognitionDialog({
       setRecognitionItems(items);
     } catch (err) {
       console.error("認識エラー:", err);
-      setError(err instanceof Error ? err.message : "画像認識に失敗しました");
+
+      // レートリミットエラーの検出
+      const isRateLimit =
+        err instanceof Error &&
+        (err.message === "RATE_LIMIT_EXCEEDED" ||
+          err.message.includes("quota") ||
+          err.message.includes("Quota exceeded") ||
+          err.message.includes("rate limit"));
+
+      setError(
+        isRateLimit
+          ? "API利用制限に達しました。しばらく時間をおいてから再度お試しください。"
+          : err instanceof Error
+          ? err.message
+          : "画像認識に失敗しました"
+      );
     } finally {
       setIsRecognizing(false);
+      setRecognitionProgress(null);
     }
   };
 
@@ -180,15 +222,26 @@ export function BatchImageRecognitionDialog({
   const handleEditSubmit = async (data: TransactionFormValues) => {
     if (editingIndex === null) return;
 
+    // 決済サービスをpaymentMethodから逆変換
+    const paymentService = getPaymentServiceFromMethod(data.paymentMethod);
+
     // 認識アイテムを更新
     setRecognitionItems((prev) =>
       prev.map((item, i) => {
         if (i !== editingIndex) return item;
 
+        // 元の店舗名を保持（memoから抽出するか、originalMerchantNameを保持）
+        const originalMerchantName =
+          item.transaction.originalMerchantName ||
+          (data.memo?.includes("元の店舗名: ")
+            ? data.memo.split("元の店舗名: ")[1]?.trim()
+            : undefined);
+
         return {
           ...item,
           transaction: {
             ...item.transaction,
+            paymentService,
             date: data.date,
             amount: data.amount,
             merchantName: data.description,
@@ -196,6 +249,8 @@ export function BatchImageRecognitionDialog({
               main: data.categoryMain,
               sub: data.categorySub,
             },
+            originalMerchantName:
+              originalMerchantName || item.transaction.originalMerchantName,
           } as RecognizedTransaction,
         };
       })
@@ -285,7 +340,7 @@ export function BatchImageRecognitionDialog({
             transaction.paymentService
           ),
           isIncome,
-          imageUrl: imageUrl || undefined,
+          imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined,
           // 画像から読み取った元の店舗名をAI情報として保存
           ai: transaction.originalMerchantName
             ? {
@@ -310,7 +365,7 @@ export function BatchImageRecognitionDialog({
       // 成功後、ダイアログを閉じる
       onOpenChange(false);
       setRecognitionItems([]);
-      setImageUrl("");
+      setImageUrls([]);
     } catch (err) {
       console.error("一括登録エラー:", err);
       setError("一括登録に失敗しました");
@@ -322,9 +377,10 @@ export function BatchImageRecognitionDialog({
   // リセット
   const handleReset = () => {
     setRecognitionItems([]);
-    setImageUrl("");
+    setImageUrls([]);
     setError(null);
     setSelectedPaymentService("unknown");
+    setRecognitionProgress(null);
   };
 
   // ダイアログを閉じる時にリセット
@@ -378,8 +434,8 @@ export function BatchImageRecognitionDialog({
           {recognitionItems.length === 0 && (
             <ImageUploadZone
               onUpload={handleImageUpload}
-              maxFiles={1}
-              multiple={false}
+              maxFiles={10}
+              multiple={true}
               isRecognizing={isRecognizing}
             />
           )}
@@ -390,7 +446,9 @@ export function BatchImageRecognitionDialog({
               <div className="text-center space-y-4">
                 <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  画像から取引を認識しています...
+                  {recognitionProgress
+                    ? `画像を認識しています... (${recognitionProgress.current}/${recognitionProgress.total}枚目)`
+                    : "画像から取引を認識しています..."}
                 </p>
               </div>
             </div>
@@ -398,8 +456,35 @@ export function BatchImageRecognitionDialog({
 
           {/* エラー */}
           {error && (
-            <div className="rounded-lg bg-destructive/10 p-4">
-              <p className="text-sm text-destructive">{error}</p>
+            <div
+              className={`rounded-lg p-4 ${
+                error.includes("API利用制限") || error.includes("利用制限")
+                  ? "bg-amber-50 border-2 border-amber-200"
+                  : "bg-destructive/10"
+              }`}
+            >
+              <p
+                className={`text-sm font-medium ${
+                  error.includes("API利用制限") || error.includes("利用制限")
+                    ? "text-amber-800"
+                    : "text-destructive"
+                }`}
+              >
+                {error.includes("API利用制限") || error.includes("利用制限") ? (
+                  <>
+                    <span className="font-bold">
+                      ⚠️ API利用制限に達しました
+                    </span>
+                    <br />
+                    <span className="mt-1 block">
+                      {error.split("。")[1] ||
+                        "しばらく時間をおいてから再度お試しください。"}
+                    </span>
+                  </>
+                ) : (
+                  error
+                )}
+              </p>
             </div>
           )}
 
@@ -475,9 +560,20 @@ export function BatchImageRecognitionDialog({
 
         {/* 編集フォーム */}
         <TransactionFormNew
-          key={editingIndex !== null ? `edit-${editingIndex}` : "new"}
+          key={
+            editingIndex !== null
+              ? `edit-${editingIndex}-${JSON.stringify(
+                  recognitionItems[editingIndex]?.transaction
+                )}`
+              : "new"
+          }
           open={editFormOpen}
-          onOpenChange={setEditFormOpen}
+          onOpenChange={(open) => {
+            setEditFormOpen(open);
+            if (!open) {
+              setEditingIndex(null);
+            }
+          }}
           onSubmit={handleEditSubmit}
           mode="edit"
           defaultValues={getEditDefaultValues()}

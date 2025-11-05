@@ -99,12 +99,25 @@ export function convertAdjustmentToTransaction(
 
 /**
  * 取引と残高調整を統合
+ * @param transactions 取引リスト
+ * @param adjustments 残高調整リスト
+ * @param dateRange 日付範囲（指定した場合、その範囲内の残高調整のみを統合）
  */
 export function mergeTransactionsAndAdjustments(
   transactions: Transaction[],
-  adjustments: BalanceAdjustment[]
+  adjustments: BalanceAdjustment[],
+  dateRange?: { startDate: Date; endDate: Date }
 ): Transaction[] {
-  const adjustmentTransactions = adjustments.map(convertAdjustmentToTransaction);
+  // 日付範囲が指定されている場合、その範囲内の残高調整のみを統合
+  let filteredAdjustments = adjustments;
+  if (dateRange) {
+    filteredAdjustments = adjustments.filter((adj) => {
+      const adjDate = new Date(adj.date);
+      return adjDate >= dateRange.startDate && adjDate <= dateRange.endDate;
+    });
+  }
+  
+  const adjustmentTransactions = filteredAdjustments.map(convertAdjustmentToTransaction);
   return [...transactions, ...adjustmentTransactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );

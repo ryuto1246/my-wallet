@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -81,6 +81,20 @@ export function TransactionFormNew({
     isAvailable: aiAvailable,
   } = useAISuggestion();
 
+  // サジェストの状態変化をログに記録
+  useEffect(() => {
+    console.log('📊 サジェスト状態:', {
+      suggestionsCount: suggestions.length,
+      isLoading: aiLoading,
+      error: aiError,
+      quotaExceeded,
+      aiAvailable,
+    });
+    if (suggestions.length > 0) {
+      console.log('✅ サジェスト取得成功:', suggestions);
+    }
+  }, [suggestions, aiLoading, aiError, quotaExceeded, aiAvailable]);
+
   const {
     results: recognitionResults,
     isRecognizing,
@@ -110,9 +124,19 @@ export function TransactionFormNew({
     },
   });
 
+  // 前回のopen状態とdefaultValuesを追跡
+  const prevOpenRef = useRef<boolean>(false);
+  const prevDefaultValuesKeyRef = useRef<string>('');
+  
   // defaultValuesが変更されたら、フォームをリセット
+  // ただし、ダイアログが開かれた時（false → true）のみ実行
   useEffect(() => {
-    if (open) {
+    const defaultValuesKey = defaultValues ? JSON.stringify(defaultValues) : '';
+    const isOpening = open && !prevOpenRef.current;
+    const isDefaultValuesChanged = open && defaultValues && prevOpenRef.current && defaultValuesKey !== prevDefaultValuesKeyRef.current;
+    
+    // ダイアログが開かれた時（false → true）のみリセット
+    if (isOpening) {
       if (defaultValues) {
         // 編集モード：defaultValuesでリセット
         const resetValues = {
@@ -154,6 +178,34 @@ export function TransactionFormNew({
         setInitialKeyword(null);
       }
     }
+    
+    // defaultValuesが変更された場合（編集モードで別のアイテムを編集する場合など）
+    if (isDefaultValuesChanged) {
+      const resetValues = {
+        date: new Date(),
+        amount: 0,
+        categoryMain: "",
+        categorySub: "",
+        description: "",
+        paymentMethod: "",
+        isIncome: false,
+        hasAdvance: false,
+        memo: "",
+        advance: undefined,
+        ...defaultValues,
+      };
+      form.reset(resetValues);
+      const initKeyword =
+        defaultValues.userKeyword || defaultValues.originalMerchantName || "";
+      setKeyword(initKeyword);
+      setInitialKeyword(initKeyword);
+    }
+    
+    // 状態を更新
+    prevOpenRef.current = open;
+    if (open && defaultValues) {
+      prevDefaultValuesKeyRef.current = defaultValuesKey;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, JSON.stringify(defaultValues)]);
 
@@ -176,13 +228,37 @@ export function TransactionFormNew({
           confidence: 1.0,
           hasAdvance: defaultValues.hasAdvance || false,
           advanceType: defaultValues.advance?.type || null,
-          advanceAmount: defaultValues.advance?.advanceAmount || undefined,
+          // advanceAmountは割合（0-1）である必要があるため、実際の金額を割合に変換
+          advanceAmount:
+            defaultValues.advance?.advanceAmount !== undefined &&
+            defaultValues.advance?.totalAmount !== undefined &&
+            defaultValues.advance.totalAmount > 0
+              ? defaultValues.advance.advanceAmount /
+                defaultValues.advance.totalAmount
+              : undefined,
         }
       : null;
 
   // 金額とキーワードが変更されたら自動的にAIサジェスチョンを取得
   useEffect(() => {
-    if (!aiAvailable || !keyword.trim() || keyword.length < 2) {
+    console.log('🔍 サジェスト取得チェック:', {
+      aiAvailable,
+      keyword: keyword.trim(),
+      keywordLength: keyword.length,
+      amount,
+      paymentMethod,
+      mode,
+      initialKeyword,
+    });
+
+    if (!aiAvailable) {
+      console.log('⚠️ AIが利用できません');
+      clearSuggestion();
+      return;
+    }
+
+    if (!keyword.trim() || keyword.length < 2) {
+      console.log('⚠️ キーワードが短すぎます:', keyword);
       clearSuggestion();
       return;
     }
@@ -191,18 +267,27 @@ export function TransactionFormNew({
     const isInitialKeyword =
       mode === "edit" && initialKeyword !== null && keyword === initialKeyword;
     if (isInitialKeyword) {
+      console.log('⚠️ 編集モードで初期キーワードから変更されていません');
       return;
     }
 
+    console.log('✅ サジェスト取得を開始:', { keyword, amount, paymentMethod });
+
     const timer = setTimeout(() => {
+      console.log('🚀 サジェスト取得実行:', { keyword, amount, paymentMethod });
       getMultipleSuggestions(keyword, {
         amount,
         paymentMethod: paymentMethod as PaymentMethodValue | undefined,
         // isIncomeはAIに判定させるので送らない
+      }).catch((err) => {
+        console.error('❌ サジェスト取得エラー:', err);
       });
     }, 500); // デバウンス
 
-    return () => clearTimeout(timer);
+    return () => {
+      console.log('🧹 タイマーをクリア');
+      clearTimeout(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     keyword,
@@ -439,9 +524,37 @@ export function TransactionFormNew({
               </div>
             )}
 
+            {/* APIキーが設定されていない場合 */}
+            {!aiAvailable && keyword.trim().length >= 2 && (
+              <div className="text-center py-2 md:py-4">
+                <div className="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
+                  AI APIキーが設定されていません。環境変数にNEXT_PUBLIC_GEMINI_API_KEYを設定してください。
+                </div>
+              </div>
+            )}
+
+            {/* キーワードが短すぎる場合 */}
+            {aiAvailable && keyword.trim().length > 0 && keyword.trim().length < 2 && (
+              <div className="text-center py-2 md:py-4">
+                <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+                  キーワードは2文字以上入力してください
+                </div>
+              </div>
+            )}
+
+            {/* レートリミットエラーの場合 */}
             {quotaExceeded && (
               <div className="text-center py-2 md:py-4">
                 <div className="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
+                  {aiError}
+                </div>
+              </div>
+            )}
+
+            {/* その他のエラーの場合 */}
+            {!aiLoading && !quotaExceeded && aiError && keyword.trim().length >= 2 && (
+              <div className="text-center py-2 md:py-4">
+                <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
                   {aiError}
                 </div>
               </div>

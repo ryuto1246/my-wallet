@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useTransactions, useBalanceAdjustments, useAuth } from "@/hooks";
 import {
   deleteBalanceAdjustment,
@@ -25,7 +25,11 @@ import {
   mergeTransactionsAndAdjustments,
   calculatePaymentMethodBalances,
 } from "@/lib/helpers";
-import type { TransactionInput, PaymentMethodValue } from "@/types/transaction";
+import type {
+  TransactionInput,
+  PaymentMethodValue,
+  Transaction,
+} from "@/types/transaction";
 
 export default function TransactionsPage() {
   const { user } = useAuth();
@@ -52,12 +56,148 @@ export default function TransactionsPage() {
     updateTransaction,
     deleteTransaction,
   } = useTransactions();
-  const { adjustments } = useBalanceAdjustments();
+  const { adjustments, refetch: refetchAdjustments } = useBalanceAdjustments();
+
+  // スクロール位置とページネーション状態を保存・復元
+  const scrollPositionRef = useRef<number>(0);
+  const savedPageRef = useRef<number>(1);
+  const isDialogOpenRef = useRef<boolean>(false);
+  const shouldRestorePageRef = useRef<boolean>(false);
+  const isRestoringPageRef = useRef<boolean>(false);
+
+  // ダイアログの開閉時にスクロール位置とページ番号を保存
+  useEffect(() => {
+    const isAnyDialogOpen =
+      formOpen ||
+      batchImageDialogOpen ||
+      transferDialogOpen ||
+      balanceAdjustmentOpen;
+
+    // ダイアログが開かれた時（false → true）にスクロール位置とページ番号を保存
+    if (isAnyDialogOpen && !isDialogOpenRef.current) {
+      scrollPositionRef.current = window.scrollY;
+      savedPageRef.current = currentPage;
+      shouldRestorePageRef.current = false;
+      isRestoringPageRef.current = false;
+    }
+
+    // ダイアログが閉じた時（true → false）に復元フラグを設定
+    if (!isAnyDialogOpen && isDialogOpenRef.current) {
+      shouldRestorePageRef.current = true;
+
+      // 読み込み完了後、DOMの更新が確実に反映されるまで待つ
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (scrollPositionRef.current > 0) {
+            window.scrollTo({
+              top: scrollPositionRef.current,
+              behavior: "auto",
+            });
+          }
+        });
+      });
+    }
+
+    isDialogOpenRef.current = isAnyDialogOpen;
+  }, [
+    formOpen,
+    batchImageDialogOpen,
+    transferDialogOpen,
+    balanceAdjustmentOpen,
+    currentPage,
+  ]);
+
+  // ページ情報を復元（読み込み完了後）
+  useEffect(() => {
+    if (!shouldRestorePageRef.current || loading || isRestoringPageRef.current)
+      return;
+
+    const savedPage = savedPageRef.current;
+
+    // 現在のページが1に戻ってしまい、保存したページが1より大きい場合、ページを復元
+    if (currentPage === 1 && savedPage > 1 && hasMore) {
+      isRestoringPageRef.current = true;
+
+      // ページを復元するために、必要な回数だけnextPageを呼び出す
+      const restorePage = async () => {
+        const targetPage = savedPageRef.current;
+        const pagesToMove = Math.min(targetPage - 1, 10); // 最大10ページまで
+
+        // 読み込み完了を待ってから開始
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // 必要なページ数だけ移動
+        for (let i = 0; i < pagesToMove; i++) {
+          await nextPage();
+          // 各ページ移動後に読み込み完了を待つ（十分な時間を確保）
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+
+        // 復元完了
+        shouldRestorePageRef.current = false;
+        isRestoringPageRef.current = false;
+      };
+
+      // 読み込み完了を待ってからページを復元
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          restorePage();
+        });
+      });
+    } else if (currentPage === savedPage) {
+      // ページが既に正しい場合はフラグをクリア
+      shouldRestorePageRef.current = false;
+      isRestoringPageRef.current = false;
+    }
+  }, [loading, currentPage, hasMore, nextPage]);
 
   // 取引と残高調整を統合
+  // 前回のキーと結果を保存して、内容が変わったときだけ再計算する
+  const prevTransactionsKeyRef = useRef<string>("");
+  const prevAdjustmentsKeyRef = useRef<string>("");
+  const prevResultRef = useRef<Transaction[]>([]);
+
+  const transactionsKey = transactions.map((t) => t.id).join(",");
+  const adjustmentsKey = adjustments
+    .map((a) => `${a.id}:${a.updatedAt?.getTime() || a.createdAt.getTime()}`)
+    .join(",");
+
+  // 現在のページの取引の日付範囲を計算
+  const dateRange = useMemo(() => {
+    if (transactions.length === 0) return undefined;
+
+    const dates = transactions.map((t) => new Date(t.date));
+    const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+
+    // 日付範囲を1日拡張（前後の日付も含める）
+    minDate.setDate(minDate.getDate() - 1);
+    maxDate.setDate(maxDate.getDate() + 1);
+
+    return { startDate: minDate, endDate: maxDate };
+  }, [transactions]);
+
   const allTransactions = useMemo(() => {
-    return mergeTransactionsAndAdjustments(transactions, adjustments);
-  }, [transactions, adjustments]);
+    // 内容が変わっていない場合は前回の結果を返す
+    if (
+      prevTransactionsKeyRef.current === transactionsKey &&
+      prevAdjustmentsKeyRef.current === adjustmentsKey
+    ) {
+      return prevResultRef.current;
+    }
+
+    // 内容が変わった場合のみ再計算
+    // 現在のページの取引の日付範囲に該当する残高調整のみを統合
+    const result = mergeTransactionsAndAdjustments(
+      transactions,
+      adjustments,
+      dateRange
+    );
+    prevTransactionsKeyRef.current = transactionsKey;
+    prevAdjustmentsKeyRef.current = adjustmentsKey;
+    prevResultRef.current = result;
+    return result;
+  }, [transactions, adjustments, transactionsKey, adjustmentsKey, dateRange]);
 
   const handleSubmit = async (data: TransactionFormValues) => {
     try {
@@ -116,14 +256,18 @@ export default function TransactionsPage() {
 
   // 削除処理
   const handleDelete = async (id: string) => {
-    // 残高確認/修正の場合は、IDから残高調整IDを抽出して削除
-    if (id.startsWith("adjustment-")) {
-      const adjustmentId = id.replace("adjustment-", "");
-      await deleteBalanceAdjustment(adjustmentId);
-      // ページをリロードして最新データを取得
-      window.location.reload();
-    } else {
-      await deleteTransaction(id);
+    try {
+      // 残高確認/修正の場合は、IDから残高調整IDを抽出して削除
+      if (id.startsWith("adjustment-")) {
+        const adjustmentId = id.replace("adjustment-", "");
+        await deleteBalanceAdjustment(adjustmentId);
+        // 残高調整データを再取得
+        await refetchAdjustments();
+      } else {
+        await deleteTransaction(id);
+      }
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -267,8 +411,8 @@ export default function TransactionsPage() {
       );
 
       setEditingAdjustmentId(null);
-      // ページをリロードして最新データを取得
-      window.location.reload();
+      // 残高調整データを再取得
+      await refetchAdjustments();
     } catch (error) {
       console.error("残高確認/修正エラー:", error);
       throw error;
@@ -380,6 +524,7 @@ export default function TransactionsPage() {
         showPaymentMethod
         dateFormat="yyyy年M月d日(E)"
         currentPage={currentPage}
+        totalPages={!hasMore ? currentPage : undefined}
         hasMore={hasMore}
         hasPrevious={hasPrevious}
         onAddClick={() => setFormOpen(true)}

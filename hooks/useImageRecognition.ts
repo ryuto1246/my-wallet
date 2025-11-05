@@ -170,6 +170,13 @@ export function useImageRecognition(
           } catch (err) {
             console.error('認識エラー:', err);
             
+            // レートリミットエラーの検出
+            const isRateLimit = err instanceof Error && 
+              (err.message === 'RATE_LIMIT_EXCEEDED' ||
+               err.message.includes('quota') ||
+               err.message.includes('Quota exceeded') ||
+               err.message.includes('rate limit'));
+            
             // エラー状態に更新
             setResults((prev) =>
               prev.map((r) =>
@@ -177,10 +184,11 @@ export function useImageRecognition(
                   ? {
                       ...r,
                       status: 'error',
-                      error:
-                        err instanceof Error
-                          ? err.message
-                          : '認識に失敗しました',
+                      error: isRateLimit
+                        ? 'API利用制限に達しました。しばらく時間をおいてから再度お試しください。'
+                        : err instanceof Error
+                        ? err.message
+                        : '認識に失敗しました',
                     }
                   : r
               )
@@ -189,8 +197,20 @@ export function useImageRecognition(
         }
       } catch (err) {
         console.error('認識処理エラー:', err);
+        
+        // レートリミットエラーの検出
+        const isRateLimit = err instanceof Error && 
+          (err.message === 'RATE_LIMIT_EXCEEDED' ||
+           err.message.includes('quota') ||
+           err.message.includes('Quota exceeded') ||
+           err.message.includes('rate limit'));
+        
         setError(
-          err instanceof Error ? err.message : '認識処理に失敗しました'
+          isRateLimit
+            ? 'API利用制限に達しました。しばらく時間をおいてから再度お試しください。'
+            : err instanceof Error
+            ? err.message
+            : '認識処理に失敗しました'
         );
       } finally {
         setIsRecognizing(false);

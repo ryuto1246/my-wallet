@@ -45,14 +45,37 @@ const FormField = <
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
-  const { getFieldState, formState } = useFormContext();
-
-  const fieldState = getFieldState(fieldContext.name, formState);
-
+  
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>");
   }
 
+  if (!itemContext) {
+    throw new Error("useFormField should be used within <FormItem>");
+  }
+
+  // useFormContextはFormProviderの外で呼び出されるとエラーをスローする
+  // そのため、ここで直接呼び出す（エラーは適切に伝播される）
+  let formContext;
+  try {
+    formContext = useFormContext();
+  } catch {
+    throw new Error("useFormField should be used within <Form>");
+  }
+  
+  // formContextがundefinedの可能性をチェック（安全のため）
+  if (!formContext) {
+    throw new Error("useFormField should be used within <Form>");
+  }
+
+  // controlが存在することを確認してから分割代入
+  if (!formContext.control) {
+    throw new Error("Form context is missing control property");
+  }
+
+  const { getFieldState, formState } = formContext;
+  
+  const fieldState = getFieldState(fieldContext.name, formState);
   const { id } = itemContext;
 
   return {

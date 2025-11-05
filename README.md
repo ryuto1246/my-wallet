@@ -351,6 +351,8 @@ ai_learning/{learningId}/
 
 ## セットアップ
 
+詳細なセットアップ手順は **[SETUP.md](./SETUP.md)** を参照してください。
+
 ### 前提条件
 
 - Node.js 18 以上
@@ -409,6 +411,18 @@ npm run lint
 # 型チェック
 npm run type-check
 ```
+
+### 本番環境へのデプロイ
+
+Vercel へのデプロイ手順については、**[Vercel デプロイマニュアル](./docs/VERCEL_DEPLOYMENT.md)** を参照してください。
+
+主な手順：
+
+1. GitHub リポジトリと Vercel を連携
+2. 環境変数を設定（Firebase, Gemini API）
+3. 自動デプロイの設定
+
+詳細な環境変数のリストは **[環境変数テンプレート](./docs/ENV_TEMPLATE.md)** を確認してください。
 
 ### Firebase 設定
 
