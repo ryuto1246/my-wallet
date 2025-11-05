@@ -38,6 +38,7 @@ import type {
   PaymentService,
 } from "@/types/image-recognition";
 import type { TransactionInput } from "@/types/transaction";
+import type { AdvanceInfo } from "@/types/advance";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 
 interface BatchImageRecognitionDialogProps {
@@ -52,6 +53,7 @@ interface RecognitionItem {
   isDuplicate: boolean;
   duplicateReason?: string;
   matchingTransactions?: Transaction[];
+  advance?: Partial<AdvanceInfo>; // 編集時に設定された立替情報
 }
 
 interface Transaction {
@@ -237,6 +239,17 @@ export function BatchImageRecognitionDialog({
             ? data.memo.split("元の店舗名: ")[1]?.trim()
             : undefined);
 
+        // 立替情報を保存
+        const advance = data.hasAdvance && data.advance
+          ? {
+              type: data.advance.type,
+              totalAmount: data.advance.totalAmount,
+              advanceAmount: data.advance.advanceAmount,
+              personalAmount: data.advance.personalAmount,
+              memo: data.advance.memo,
+            }
+          : undefined;
+
         return {
           ...item,
           transaction: {
@@ -252,6 +265,7 @@ export function BatchImageRecognitionDialog({
             originalMerchantName:
               originalMerchantName || item.transaction.originalMerchantName,
           } as RecognizedTransaction,
+          advance, // 立替情報を保存
         };
       })
     );
@@ -287,7 +301,7 @@ export function BatchImageRecognitionDialog({
     const item = recognitionItems[editingIndex];
     if (!item) return undefined;
 
-    const { transaction } = item;
+    const { transaction, advance } = item;
     const isIncome = transaction.suggestedCategory?.main === "収入" || false;
 
     return {
@@ -298,7 +312,16 @@ export function BatchImageRecognitionDialog({
       description: transaction.merchantName || "",
       paymentMethod: getPaymentMethodFromService(transaction.paymentService),
       isIncome,
-      hasAdvance: false,
+      hasAdvance: !!advance,
+      advance: advance
+        ? {
+            type: advance.type || null,
+            totalAmount: advance.totalAmount || transaction.amount || 0,
+            advanceAmount: advance.advanceAmount || 0,
+            personalAmount: advance.personalAmount || transaction.amount || 0,
+            memo: advance.memo || "",
+          }
+        : undefined,
       // 画像から読み取った元の店舗名をメモ欄に表示
       memo: transaction.originalMerchantName
         ? `元の店舗名: ${transaction.originalMerchantName}`
@@ -322,7 +345,7 @@ export function BatchImageRecognitionDialog({
 
     try {
       const transactionsData: TransactionInput[] = selectedItems.map((item) => {
-        const { transaction } = item;
+        const { transaction, advance } = item;
 
         // カテゴリーから収入/支出を判定
         const isIncome =
@@ -340,6 +363,16 @@ export function BatchImageRecognitionDialog({
             transaction.paymentService
           ),
           isIncome,
+          // 立替情報を含める
+          advance: advance
+            ? {
+                type: advance.type || null,
+                totalAmount: advance.totalAmount || transaction.amount || 0,
+                advanceAmount: advance.advanceAmount || 0,
+                personalAmount: advance.personalAmount || transaction.amount || 0,
+                memo: advance.memo,
+              }
+            : undefined,
           imageUrl: imageUrls.length > 0 ? imageUrls[0] : undefined,
           // 画像から読み取った元の店舗名をAI情報として保存
           ai: transaction.originalMerchantName

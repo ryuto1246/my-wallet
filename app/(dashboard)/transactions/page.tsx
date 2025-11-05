@@ -114,42 +114,73 @@ export default function TransactionsPage() {
 
     const savedPage = savedPageRef.current;
 
-    // 現在のページが1に戻ってしまい、保存したページが1より大きい場合、ページを復元
-    if (currentPage === 1 && savedPage > 1 && hasMore) {
-      isRestoringPageRef.current = true;
+    // 保存したページと現在のページが異なる場合、ページを復元
+    if (currentPage !== savedPage) {
+      // 現在のページが1で、保存したページが1より大きい場合、nextPageで復元
+      if (currentPage === 1 && savedPage > 1 && hasMore) {
+        isRestoringPageRef.current = true;
 
-      // ページを復元するために、必要な回数だけnextPageを呼び出す
-      const restorePage = async () => {
-        const targetPage = savedPageRef.current;
-        const pagesToMove = Math.min(targetPage - 1, 10); // 最大10ページまで
+        // ページを復元するために、必要な回数だけnextPageを呼び出す
+        const restorePage = async () => {
+          const targetPage = savedPageRef.current;
+          const pagesToMove = Math.min(targetPage - 1, 10); // 最大10ページまで
 
-        // 読み込み完了を待ってから開始
-        await new Promise((resolve) => setTimeout(resolve, 100));
+          // 読み込み完了を待ってから開始
+          await new Promise((resolve) => setTimeout(resolve, 100));
 
-        // 必要なページ数だけ移動
-        for (let i = 0; i < pagesToMove; i++) {
-          await nextPage();
-          // 各ページ移動後に読み込み完了を待つ（十分な時間を確保）
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
+          // 必要なページ数だけ移動
+          for (let i = 0; i < pagesToMove; i++) {
+            await nextPage();
+            // 各ページ移動後に読み込み完了を待つ（十分な時間を確保）
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
 
-        // 復元完了
-        shouldRestorePageRef.current = false;
-        isRestoringPageRef.current = false;
-      };
+          // 復元完了
+          shouldRestorePageRef.current = false;
+          isRestoringPageRef.current = false;
+        };
 
-      // 読み込み完了を待ってからページを復元
-      requestAnimationFrame(() => {
+        // 読み込み完了を待ってからページを復元
         requestAnimationFrame(() => {
-          restorePage();
+          requestAnimationFrame(() => {
+            restorePage();
+          });
         });
-      });
+      } else if (currentPage > savedPage && hasPrevious) {
+        // 現在のページが保存したページより大きい場合、previousPageで復元
+        isRestoringPageRef.current = true;
+
+        const restorePage = async () => {
+          const targetPage = savedPageRef.current;
+          const pagesToMove = Math.min(currentPage - targetPage, 10); // 最大10ページまで
+
+          // 読み込み完了を待ってから開始
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // 必要なページ数だけ戻る
+          for (let i = 0; i < pagesToMove; i++) {
+            await previousPage();
+            // 各ページ移動後に読み込み完了を待つ
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          }
+
+          // 復元完了
+          shouldRestorePageRef.current = false;
+          isRestoringPageRef.current = false;
+        };
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            restorePage();
+          });
+        });
+      }
     } else if (currentPage === savedPage) {
       // ページが既に正しい場合はフラグをクリア
       shouldRestorePageRef.current = false;
       isRestoringPageRef.current = false;
     }
-  }, [loading, currentPage, hasMore, nextPage]);
+  }, [loading, currentPage, hasMore, hasPrevious, nextPage, previousPage]);
 
   // 取引と残高調整を統合
   // 前回のキーと結果を保存して、内容が変わったときだけ再計算する
@@ -200,18 +231,24 @@ export default function TransactionsPage() {
   }, [transactions, adjustments, transactionsKey, adjustmentsKey, dateRange]);
 
   const handleSubmit = async (data: TransactionFormValues) => {
+    console.log("🟡 TransactionsPage handleSubmit 開始:", data);
     try {
       const transactionData = transformFormDataToTransaction(data);
+      console.log("📦 変換後の取引データ:", transactionData);
       if (editingTransactionId) {
         // 編集モード
+        console.log("✏️ 編集モード: ID =", editingTransactionId);
         await updateTransaction(editingTransactionId, transactionData);
+        console.log("✅ 更新完了");
         setEditingTransactionId(null);
       } else {
         // 新規作成モード
+        console.log("➕ 新規作成モード");
         await createTransaction(transactionData);
+        console.log("✅ 作成完了");
       }
     } catch (error) {
-      console.error("トランザクション作成/更新エラー:", error);
+      console.error("❌ トランザクション作成/更新エラー:", error);
       throw error;
     }
   };
@@ -298,6 +335,12 @@ export default function TransactionsPage() {
 
   // 編集開始時に日付を設定
   const handleEdit = (id: string) => {
+    // 編集ダイアログを開く前に、現在のページとスクロール位置を保存
+    scrollPositionRef.current = window.scrollY;
+    savedPageRef.current = currentPage;
+    shouldRestorePageRef.current = false;
+    isRestoringPageRef.current = false;
+
     // 残高確認/修正の場合
     if (id.startsWith("adjustment-")) {
       const adjustmentId = id.replace("adjustment-", "");
@@ -430,6 +473,7 @@ export default function TransactionsPage() {
           description: editingTransaction.description,
           paymentMethod: editingTransaction.paymentMethod,
           isIncome: editingTransaction.isIncome,
+          isTransfer: false,
           hasAdvance: !!editingTransaction.advance,
           advance: editingTransaction.advance
             ? {
@@ -471,6 +515,18 @@ export default function TransactionsPage() {
 
   const adjustmentPaymentMethod = editingAdjustment?.paymentMethod || null;
 
+  // 残高調整のデフォルト値
+  const adjustmentDefaultValues = editingAdjustment
+    ? {
+        date:
+          adjustmentDate && !isNaN(adjustmentDate.getTime())
+            ? adjustmentDate
+            : editingAdjustment.date,
+        actualBalance: editingAdjustment.actualBalance,
+        memo: editingAdjustment.memo || "",
+      }
+    : undefined;
+
   // 指定日時点での期待残高を計算
   const adjustmentExpectedBalance = useMemo(() => {
     if (!editingAdjustment) return 0;
@@ -479,7 +535,7 @@ export default function TransactionsPage() {
     const validDate =
       adjustmentDate && !isNaN(adjustmentDate.getTime())
         ? adjustmentDate
-        : new Date();
+        : editingAdjustment.date;
 
     const balances = calculatePaymentMethodBalances(
       transactions,
@@ -566,6 +622,7 @@ export default function TransactionsPage() {
         expectedBalance={adjustmentExpectedBalance}
         onSubmit={handleBalanceAdjustment}
         onDateChange={handleAdjustmentDateChange}
+        defaultValues={adjustmentDefaultValues}
       />
     </DashboardTemplate>
   );

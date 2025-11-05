@@ -111,9 +111,16 @@ export function mergeTransactionsAndAdjustments(
   // 日付範囲が指定されている場合、その範囲内の残高調整のみを統合
   let filteredAdjustments = adjustments;
   if (dateRange) {
+    // 日付のみで比較するため、時刻をリセット
+    const startDateOnly = new Date(dateRange.startDate);
+    startDateOnly.setHours(0, 0, 0, 0);
+    const endDateOnly = new Date(dateRange.endDate);
+    endDateOnly.setHours(23, 59, 59, 999);
+    
     filteredAdjustments = adjustments.filter((adj) => {
       const adjDate = new Date(adj.date);
-      return adjDate >= dateRange.startDate && adjDate <= dateRange.endDate;
+      adjDate.setHours(0, 0, 0, 0);
+      return adjDate >= startDateOnly && adjDate <= endDateOnly;
     });
   }
   

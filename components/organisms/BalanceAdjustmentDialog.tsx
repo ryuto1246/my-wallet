@@ -3,7 +3,7 @@
  * 決済手段の実際の残高を入力して差異を記録
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PaymentMethodValue } from "@/types/transaction";
 import { getPaymentMethodLabel } from "@/constants";
 import { formatCurrency } from "@/lib/helpers/format";
+import { format } from "date-fns";
 import { ErrorMessage } from "@/components/atoms";
 
 interface BalanceAdjustmentFormData {
@@ -34,6 +35,11 @@ interface BalanceAdjustmentDialogProps {
   expectedBalance: number;
   onSubmit: (date: Date, actualBalance: number, memo: string) => Promise<void>;
   onDateChange?: (date: Date) => void;
+  defaultValues?: {
+    date: Date;
+    actualBalance: number;
+    memo?: string;
+  };
 }
 
 export function BalanceAdjustmentDialog({
@@ -43,6 +49,7 @@ export function BalanceAdjustmentDialog({
   expectedBalance,
   onSubmit,
   onDateChange,
+  defaultValues,
 }: BalanceAdjustmentDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,16 +62,64 @@ export function BalanceAdjustmentDialog({
     setValue,
     formState: { errors },
   } = useForm<BalanceAdjustmentFormData>({
-    defaultValues: {
+    defaultValues: defaultValues || {
       date: new Date(),
       actualBalance: expectedBalance,
       memo: "",
     },
   });
 
-  // ダイアログが開いたときに日付を初期化
+  // ダイアログが開いたときまたはdefaultValuesが変更されたときにフォームをリセット
+  const prevOpenRef = useRef<boolean>(false);
+  const prevDefaultValuesKeyRef = useRef<string>('');
+  
+  useEffect(() => {
+    const defaultValuesKey = defaultValues ? JSON.stringify(defaultValues) : '';
+    const isOpening = open && !prevOpenRef.current;
+    const isDefaultValuesChanged = open && defaultValues && prevOpenRef.current && defaultValuesKey !== prevDefaultValuesKeyRef.current;
+    
+    // ダイアログが開かれた時（false → true）のみリセット
+    if (isOpening) {
+      if (defaultValues) {
+        // 編集モード：defaultValuesでリセット
+        reset({
+          date: defaultValues.date,
+          actualBalance: defaultValues.actualBalance,
+          memo: defaultValues.memo || "",
+        });
+        onDateChange?.(defaultValues.date);
+      } else {
+        // 新規作成モード：空の値でリセット
+        const today = new Date();
+        reset({
+          date: today,
+          actualBalance: expectedBalance,
+          memo: "",
+        });
+        onDateChange?.(today);
+      }
+    }
+    
+    // defaultValuesが変更された場合（編集モードで別のアイテムを編集する場合など）
+    if (isDefaultValuesChanged) {
+      reset({
+        date: defaultValues.date,
+        actualBalance: defaultValues.actualBalance,
+        memo: defaultValues.memo || "",
+      });
+      onDateChange?.(defaultValues.date);
+    }
+    
+    // 状態を更新
+    prevOpenRef.current = open;
+    if (open && defaultValues) {
+      prevDefaultValuesKeyRef.current = defaultValuesKey;
+    }
+  }, [open, defaultValues, expectedBalance, reset, onDateChange]);
+
+  // ダイアログが開いたときに日付を初期化（新規作成モードの場合のみ）
   const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen) {
+    if (newOpen && !defaultValues) {
       const today = new Date();
       setValue("date", today);
       onDateChange?.(today);
@@ -141,7 +196,7 @@ export function BalanceAdjustmentDialog({
             <Input
               id="date"
               type="date"
-              defaultValue={new Date().toISOString().split("T")[0]}
+              value={watch("date") ? format(watch("date"), "yyyy-MM-dd") : ""}
               onChange={handleDateChange}
               className="font-medium"
             />
