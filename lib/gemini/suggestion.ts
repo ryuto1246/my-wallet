@@ -193,7 +193,7 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
       errorMessage.includes('Rate limit') ||
       errorMessage.includes('RESOURCE_EXHAUSTED') ||
       errorMessage.includes('PERMISSION_DENIED') ||
-      (errorStatus >= 429 && errorStatus < 500)
+      (errorStatus !== undefined && errorStatus >= 429 && errorStatus < 500)
     ) {
       const rateLimitError = new Error('RATE_LIMIT_EXCEEDED');
       Object.assign(rateLimitError, { originalError: error });

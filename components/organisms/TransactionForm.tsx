@@ -77,6 +77,8 @@ export function TransactionForm({
       description: "",
       paymentMethod: "",
       isIncome: false,
+      isTransfer: false,
+      hasAdvance: false,
       memo: "",
       ...defaultValues,
     },
