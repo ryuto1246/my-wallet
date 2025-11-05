@@ -50,12 +50,13 @@ export async function recognizeBatchTransactionsFromImage(
     const transactions = parseBatchRecognitionResponse(text);
 
     return transactions;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('一括画像認識に失敗しました:', error);
     
     // レートリミットエラーの検出
-    const errorMessage = error?.message || '';
-    const errorStatus = error?.status || error?.code;
+    const errorObj = error as { message?: string; status?: number; code?: number };
+    const errorMessage = errorObj?.message || '';
+    const errorStatus = errorObj?.status || errorObj?.code;
     
     if (
       errorStatus === 429 ||

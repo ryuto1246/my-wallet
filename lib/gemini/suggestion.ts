@@ -175,12 +175,13 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
       })
       .slice(0, 5); // 最大5パターン
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error getting multiple AI suggestions:', error);
     
     // レートリミットエラーの検出
-    const errorMessage = error?.message || '';
-    const errorStatus = error?.status || error?.code;
+    const errorObj = error as { message?: string; status?: number; code?: number };
+    const errorMessage = errorObj?.message || '';
+    const errorStatus = errorObj?.status || errorObj?.code;
     
     // Gemini APIのレートリミットエラーを検出
     if (
@@ -195,7 +196,7 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
       (errorStatus >= 429 && errorStatus < 500)
     ) {
       const rateLimitError = new Error('RATE_LIMIT_EXCEEDED');
-      (rateLimitError as any).originalError = error;
+      Object.assign(rateLimitError, { originalError: error });
       throw rateLimitError;
     }
     
@@ -206,7 +207,7 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
       errorMessage.includes('PERMISSION_DENIED')
     ) {
       const apiKeyError = new Error('API_KEY_INVALID');
-      (apiKeyError as any).originalError = error;
+      Object.assign(apiKeyError, { originalError: error });
       throw apiKeyError;
     }
     
@@ -214,7 +215,7 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
     const genericError = new Error(
       errorMessage || 'AIサジェスチョンの取得に失敗しました'
     );
-    (genericError as any).originalError = error;
+    Object.assign(genericError, { originalError: error });
     throw genericError;
   }
 };

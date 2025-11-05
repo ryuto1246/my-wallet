@@ -59,7 +59,7 @@ const useFormField = () => {
   let formContext;
   try {
     formContext = useFormContext();
-  } catch (error) {
+  } catch {
     throw new Error("useFormField should be used within <Form>");
   }
   
@@ -73,7 +73,7 @@ const useFormField = () => {
     throw new Error("Form context is missing control property");
   }
 
-  const { getFieldState, formState, control } = formContext;
+  const { getFieldState, formState } = formContext;
   
   const fieldState = getFieldState(fieldContext.name, formState);
   const { id } = itemContext;
