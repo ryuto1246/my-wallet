@@ -175,9 +175,47 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
       })
       .slice(0, 5); // 最大5パターン
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting multiple AI suggestions:', error);
-    return [];
+    
+    // レートリミットエラーの検出
+    const errorMessage = error?.message || '';
+    const errorStatus = error?.status || error?.code;
+    
+    // Gemini APIのレートリミットエラーを検出
+    if (
+      errorStatus === 429 ||
+      errorMessage.includes('quota') ||
+      errorMessage.includes('Quota exceeded') ||
+      errorMessage.includes('Quota') ||
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('Rate limit') ||
+      errorMessage.includes('RESOURCE_EXHAUSTED') ||
+      errorMessage.includes('PERMISSION_DENIED') ||
+      (errorStatus >= 429 && errorStatus < 500)
+    ) {
+      const rateLimitError = new Error('RATE_LIMIT_EXCEEDED');
+      (rateLimitError as any).originalError = error;
+      throw rateLimitError;
+    }
+    
+    // APIキーエラーの検出
+    if (
+      errorMessage.includes('API key') ||
+      errorMessage.includes('API_KEY') ||
+      errorMessage.includes('PERMISSION_DENIED')
+    ) {
+      const apiKeyError = new Error('API_KEY_INVALID');
+      (apiKeyError as any).originalError = error;
+      throw apiKeyError;
+    }
+    
+    // その他のエラーも再スロー
+    const genericError = new Error(
+      errorMessage || 'AIサジェスチョンの取得に失敗しました'
+    );
+    (genericError as any).originalError = error;
+    throw genericError;
   }
 };
 

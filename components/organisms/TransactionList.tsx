@@ -22,6 +22,7 @@ interface TransactionListProps {
   emptyButtonText?: string;
   // ページネーション関連
   currentPage?: number;
+  totalPages?: number;
   hasMore?: boolean;
   hasPrevious?: boolean;
   onAddClick: () => void;
@@ -44,6 +45,7 @@ export function TransactionList({
   emptyMessage = "まだ取引がありません",
   emptyButtonText = "最初の取引を追加",
   currentPage = 1,
+  totalPages,
   hasMore = false,
   hasPrevious = false,
   onAddClick,
@@ -82,6 +84,7 @@ export function TransactionList({
           <div className="mb-4">
             <Pagination
               currentPage={currentPage}
+              totalPages={totalPages}
               hasNext={hasMore}
               hasPrevious={hasPrevious}
               onNextPage={onNextPage}
@@ -91,7 +94,7 @@ export function TransactionList({
           </div>
         )}
 
-        {loading ? (
+        {loading && transactions.length === 0 ? (
           <div className="text-center py-8 sm:py-12 text-sm sm:text-base text-gray-700">
             読み込み中...
           </div>
@@ -115,6 +118,11 @@ export function TransactionList({
           </div>
         ) : (
           <>
+            {loading && (
+              <div className="text-center py-2 text-sm text-gray-600 mb-2">
+                読み込み中...
+              </div>
+            )}
             <div className="space-y-2">
               {transactions.map((transaction) => (
                 <TransactionListItem

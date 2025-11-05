@@ -2,7 +2,7 @@
  * トランザクション操作カスタムフック
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTransactionStore } from '@/lib/store/transactionStore';
 import { useAuthStore } from '@/lib/store/authStore';
 import {
@@ -44,11 +44,11 @@ export const useTransactions = (filter?: TransactionFilter) => {
     setLoading(true);
     resetPagination();
     try {
-      const { transactions, lastDoc: newLastDoc } = await getTransactions(user.id, currentFilter, 50);
+      const { transactions, lastDoc: newLastDoc } = await getTransactions(user.id, currentFilter, 20);
       setTransactions(transactions);
       setLastDoc(newLastDoc);
       setPageHistory([null, newLastDoc]);
-      setHasMore(transactions.length === 50);
+      setHasMore(transactions.length === 20);
       setCurrentPage(1);
     } catch (error) {
       console.error('トランザクション取得エラー:', error);
@@ -66,12 +66,12 @@ export const useTransactions = (filter?: TransactionFilter) => {
       const { transactions: newTransactions, lastDoc: newLastDoc } = await getTransactions(
         user.id,
         currentFilter,
-        50,
+        20,
         lastDoc
       );
       appendTransactions(newTransactions);
       setLastDoc(newLastDoc);
-      setHasMore(newTransactions.length === 50);
+      setHasMore(newTransactions.length === 20);
     } catch (error) {
       console.error('追加トランザクション取得エラー:', error);
     } finally {
@@ -81,35 +81,39 @@ export const useTransactions = (filter?: TransactionFilter) => {
   
   // 次のページへ
   const nextPage = useCallback(async () => {
-    if (!user || !hasMore || loading) return;
+    if (!user || !hasMore || loading || !lastDoc) return;
     
     setLoading(true);
     try {
-      const startDoc = pageHistory[currentPage] || undefined;
+      // 現在のページのlastDocを使用して次のページを取得
       const { transactions: newTransactions, lastDoc: newLastDoc } = await getTransactions(
         user.id,
         currentFilter,
-        50,
-        startDoc
+        20,
+        lastDoc
       );
       setTransactions(newTransactions);
       setLastDoc(newLastDoc);
       
-      // ページ履歴を更新
+      // ページ履歴を更新（現在のページのlastDocを履歴に保存）
       const newHistory = [...pageHistory];
+      if (newHistory.length <= currentPage) {
+        newHistory.push(lastDoc);
+      }
+      // 次のページのlastDocを履歴に追加
       if (newHistory.length <= currentPage + 1) {
         newHistory.push(newLastDoc);
       }
       setPageHistory(newHistory);
       
-      setHasMore(newTransactions.length === 50);
+      setHasMore(newTransactions.length === 20);
       setCurrentPage(currentPage + 1);
     } catch (error) {
       console.error('次のページ取得エラー:', error);
     } finally {
       setLoading(false);
     }
-  }, [user, currentFilter, currentPage, pageHistory, hasMore, loading, setTransactions, setLoading, setLastDoc, setPageHistory, setHasMore, setCurrentPage]);
+  }, [user, currentFilter, currentPage, pageHistory, lastDoc, hasMore, loading, setTransactions, setLoading, setLastDoc, setPageHistory, setHasMore, setCurrentPage]);
   
   // 前のページへ
   const previousPage = useCallback(async () => {
@@ -117,11 +121,13 @@ export const useTransactions = (filter?: TransactionFilter) => {
     
     setLoading(true);
     try {
+      // 前のページの開始位置を取得（pageHistory[currentPage - 1]は前のページの終了位置）
+      // 前のページの開始位置はpageHistory[currentPage - 2]
       const startDoc = pageHistory[currentPage - 2] || undefined;
       const { transactions: newTransactions, lastDoc: newLastDoc } = await getTransactions(
         user.id,
         currentFilter,
-        50,
+        20,
         startDoc
       );
       setTransactions(newTransactions);
@@ -136,16 +142,42 @@ export const useTransactions = (filter?: TransactionFilter) => {
     }
   }, [user, currentFilter, currentPage, pageHistory, loading, setTransactions, setLoading, setLastDoc, setCurrentPage, setHasMore]);
   
-  // 初回マウント時とフィルター変更時に取得
+  // フィルターを設定
   useEffect(() => {
     if (filter) {
       setFilter(filter);
     }
   }, [filter, setFilter]);
   
+  // 初回マウント時とフィルター変更時のみデータを取得
+  const prevFilterRef = useRef<string>('');
+  const isInitialMount = useRef(true);
+  const prevUserIdRef = useRef<string | undefined>(undefined);
+  
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (!user?.id) {
+      prevUserIdRef.current = undefined;
+      return;
+    }
+    
+    // ユーザーが変更された場合は再取得
+    const userIdChanged = prevUserIdRef.current !== user.id;
+    if (userIdChanged) {
+      prevUserIdRef.current = user.id;
+      isInitialMount.current = true;
+      prevFilterRef.current = '';
+    }
+    
+    const filterKey = JSON.stringify(currentFilter);
+    const isFilterChanged = prevFilterRef.current !== filterKey;
+    
+    // 初回マウント時またはフィルター変更時のみデータを取得
+    if (isInitialMount.current || isFilterChanged) {
+      isInitialMount.current = false;
+      prevFilterRef.current = filterKey;
+      fetchTransactions();
+    }
+  }, [user?.id, currentFilter, fetchTransactions]);
   
   // トランザクションを作成
   const create = useCallback(async (data: TransactionFormData) => {

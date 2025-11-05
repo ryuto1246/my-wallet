@@ -69,15 +69,39 @@ export const useAISuggestion = () => {
         setSuggestion(aiSuggestion);
       } catch (err: any) {
         console.error('Error getting AI suggestion:', err);
+        console.error('Error details:', {
+          message: err.message,
+          status: err.status,
+          code: err.code,
+          originalError: err.originalError,
+        });
         
-        // クォータ制限の場合は特別なメッセージを表示
-        if (err.message?.includes('quota') || err.message?.includes('Quota exceeded')) {
+        // レートリミットエラーの検出（拡張版）
+        const errorMessage = err.message || '';
+        const errorStatus = err.status || err.code;
+        
+        if (
+          errorMessage === 'RATE_LIMIT_EXCEEDED' ||
+          errorStatus === 429 ||
+          errorMessage.includes('quota') ||
+          errorMessage.includes('Quota exceeded') ||
+          errorMessage.includes('Quota') ||
+          errorMessage.includes('rate limit') ||
+          errorMessage.includes('Rate limit') ||
+          errorMessage.includes('RESOURCE_EXHAUSTED') ||
+          (errorStatus >= 429 && errorStatus < 500)
+        ) {
           setQuotaExceeded(true);
-          setError('本日のAIサジェスチョン回数が上限に達しました。明日またお試しください。');
-        } else if (err.message?.includes('API key')) {
-          setError('AI APIキーが設定されていません');
+          setError('本日のAIサジェスチョン回数が上限に達しました。しばらく時間をおいてから再度お試しください。');
+        } else if (
+          errorMessage === 'API_KEY_INVALID' ||
+          errorMessage.includes('API key') ||
+          errorMessage.includes('API_KEY') ||
+          errorMessage.includes('PERMISSION_DENIED')
+        ) {
+          setError('AI APIキーが設定されていないか、無効です。設定を確認してください。');
         } else {
-          setError('AIサジェスチョンの取得に失敗しました');
+          setError(`AIサジェスチョンの取得に失敗しました: ${errorMessage || '不明なエラー'}`);
         }
       } finally {
         setIsLoading(false);
@@ -153,15 +177,39 @@ export const useAISuggestion = () => {
         setSuggestions(aiSuggestions);
       } catch (err: any) {
         console.error('Error getting multiple AI suggestions:', err);
+        console.error('Error details:', {
+          message: err.message,
+          status: err.status,
+          code: err.code,
+          originalError: err.originalError,
+        });
         
-        // クォータ制限の場合は特別なメッセージを表示
-        if (err.message?.includes('quota') || err.message?.includes('Quota exceeded')) {
+        // レートリミットエラーの検出（拡張版）
+        const errorMessage = err.message || '';
+        const errorStatus = err.status || err.code;
+        
+        if (
+          errorMessage === 'RATE_LIMIT_EXCEEDED' ||
+          errorStatus === 429 ||
+          errorMessage.includes('quota') ||
+          errorMessage.includes('Quota exceeded') ||
+          errorMessage.includes('Quota') ||
+          errorMessage.includes('rate limit') ||
+          errorMessage.includes('Rate limit') ||
+          errorMessage.includes('RESOURCE_EXHAUSTED') ||
+          (errorStatus >= 429 && errorStatus < 500)
+        ) {
           setQuotaExceeded(true);
-          setError('本日のAIサジェスチョン回数が上限に達しました。明日またお試しください。');
-        } else if (err.message?.includes('API key')) {
-          setError('AI APIキーが設定されていません');
+          setError('本日のAIサジェスチョン回数が上限に達しました。しばらく時間をおいてから再度お試しください。');
+        } else if (
+          errorMessage === 'API_KEY_INVALID' ||
+          errorMessage.includes('API key') ||
+          errorMessage.includes('API_KEY') ||
+          errorMessage.includes('PERMISSION_DENIED')
+        ) {
+          setError('AI APIキーが設定されていないか、無効です。設定を確認してください。');
         } else {
-          setError('AIサジェスチョンの取得に失敗しました');
+          setError(`AIサジェスチョンの取得に失敗しました: ${errorMessage || '不明なエラー'}`);
         }
       } finally {
         setIsLoading(false);

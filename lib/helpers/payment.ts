@@ -46,7 +46,7 @@ export const getPaymentMethodFromService = (service: string): string => {
 
 /**
  * 決済方法から決済サービスを推測
- * @param paymentMethod 決済方法
+ * @param paymentMethod 決済方法（PaymentMethodValueまたは表示名）
  * @returns 決済サービス
  */
 export const getPaymentServiceFromMethod = (
@@ -54,6 +54,16 @@ export const getPaymentServiceFromMethod = (
 ): PaymentService => {
   const normalizedMethod = paymentMethod.toLowerCase().replace(/\s+/g, "");
 
+  // PaymentMethodValueから直接判定
+  if (normalizedMethod === "olive") return "olive";
+  if (normalizedMethod === "sony_bank" || normalizedMethod === "smbc_bank")
+    return "sony";
+  if (normalizedMethod === "d_payment") return "dpayment";
+  if (normalizedMethod === "d_card") return "dcard";
+  if (normalizedMethod === "paypay") return "paypay";
+  if (normalizedMethod === "cash") return "cash";
+
+  // 表示名や部分一致で判定（後方互換性のため）
   if (normalizedMethod.includes("olive")) return "olive";
   if (normalizedMethod.includes("ソニー") || normalizedMethod.includes("sony"))
     return "sony";

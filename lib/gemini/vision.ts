@@ -69,8 +69,24 @@ export async function recognizeTransactionFromImage(
     };
 
     return recognizedTransaction;
-  } catch (error) {
+  } catch (error: any) {
     console.error('画像認識に失敗しました:', error);
+    
+    // レートリミットエラーの検出
+    const errorMessage = error?.message || '';
+    const errorStatus = error?.status || error?.code;
+    
+    if (
+      errorStatus === 429 ||
+      errorMessage.includes('quota') ||
+      errorMessage.includes('Quota exceeded') ||
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('Rate limit') ||
+      errorMessage.includes('RESOURCE_EXHAUSTED')
+    ) {
+      throw new Error('RATE_LIMIT_EXCEEDED');
+    }
+    
     throw new Error('画像から取引情報を認識できませんでした');
   }
 }
