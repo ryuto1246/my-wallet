@@ -10,6 +10,8 @@ import {
   deleteBalanceAdjustment,
   createBalanceAdjustment,
 } from "@/lib/firebase";
+import { getTransactions } from "@/lib/firebase/transactions";
+import { useTransactionStore } from "@/lib/store/transactionStore";
 import { DashboardTemplate } from "@/components/templates";
 import {
   PageHeader,
@@ -57,15 +59,27 @@ export default function TransactionsPage() {
     deleteTransaction,
   } = useTransactions();
   const { adjustments, refetch: refetchAdjustments } = useBalanceAdjustments();
+  const {
+    setCurrentPage,
+    lastDoc,
+    pageHistory,
+    setLastDoc,
+    setPageHistory,
+    setTransactions,
+    setLoading,
+    setHasMore,
+    filter: currentFilter,
+  } = useTransactionStore();
 
   // スクロール位置とページネーション状態を保存・復元
   const scrollPositionRef = useRef<number>(0);
   const savedPageRef = useRef<number>(1);
+  const savedLastDocRef = useRef<typeof lastDoc>(null);
+  const savedPageHistoryRef = useRef<typeof pageHistory>([null]);
   const isDialogOpenRef = useRef<boolean>(false);
   const shouldRestorePageRef = useRef<boolean>(false);
-  const isRestoringPageRef = useRef<boolean>(false);
 
-  // ダイアログの開閉時にスクロール位置とページ番号を保存
+  // ダイアログの開閉時にスクロール位置とページネーション状態を保存・復元
   useEffect(() => {
     const isAnyDialogOpen =
       formOpen ||
@@ -73,29 +87,18 @@ export default function TransactionsPage() {
       transferDialogOpen ||
       balanceAdjustmentOpen;
 
-    // ダイアログが開かれた時（false → true）にスクロール位置とページ番号を保存
+    // ダイアログが開かれた時（false → true）に現在の状態を保存
     if (isAnyDialogOpen && !isDialogOpenRef.current) {
       scrollPositionRef.current = window.scrollY;
       savedPageRef.current = currentPage;
+      savedLastDocRef.current = lastDoc;
+      savedPageHistoryRef.current = [...pageHistory];
       shouldRestorePageRef.current = false;
-      isRestoringPageRef.current = false;
     }
 
     // ダイアログが閉じた時（true → false）に復元フラグを設定
     if (!isAnyDialogOpen && isDialogOpenRef.current) {
       shouldRestorePageRef.current = true;
-
-      // 読み込み完了後、DOMの更新が確実に反映されるまで待つ
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (scrollPositionRef.current > 0) {
-            window.scrollTo({
-              top: scrollPositionRef.current,
-              behavior: "auto",
-            });
-          }
-        });
-      });
     }
 
     isDialogOpenRef.current = isAnyDialogOpen;
@@ -105,82 +108,90 @@ export default function TransactionsPage() {
     transferDialogOpen,
     balanceAdjustmentOpen,
     currentPage,
+    lastDoc,
+    pageHistory,
   ]);
 
-  // ページ情報を復元（読み込み完了後）
+  // ページとスクロール位置を復元
   useEffect(() => {
-    if (!shouldRestorePageRef.current || loading || isRestoringPageRef.current)
-      return;
+    if (!shouldRestorePageRef.current || loading || !user) return;
 
     const savedPage = savedPageRef.current;
+    const savedLastDoc = savedLastDocRef.current;
+    const savedPageHistory = savedPageHistoryRef.current;
 
-    // 保存したページと現在のページが異なる場合、ページを復元
-    if (currentPage !== savedPage) {
-      // 現在のページが1で、保存したページが1より大きい場合、nextPageで復元
-      if (currentPage === 1 && savedPage > 1 && hasMore) {
-        isRestoringPageRef.current = true;
+    // ページが変わっていた場合、復元する
+    if (currentPage !== savedPage && savedLastDoc) {
+      const restorePage = async () => {
+        setLoading(true);
+        try {
+          // 保存したページの開始位置を取得
+          // savedPage > 1の場合、pageHistory[savedPage - 2]が開始位置
+          const startDoc =
+            savedPage > 1
+              ? savedPageHistory[savedPage - 2] || undefined
+              : undefined;
 
-        // ページを復元するために、必要な回数だけnextPageを呼び出す
-        const restorePage = async () => {
-          const targetPage = savedPageRef.current;
-          const pagesToMove = Math.min(targetPage - 1, 10); // 最大10ページまで
+          // 保存したページのデータを取得
+          const {
+            transactions: restoredTransactions,
+            lastDoc: restoredLastDoc,
+          } = await getTransactions(user.id, currentFilter, 20, startDoc);
 
-          // 読み込み完了を待ってから開始
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          // ページ状態とデータを復元
+          setTransactions(restoredTransactions);
+          setLastDoc(restoredLastDoc);
+          setPageHistory(savedPageHistory);
+          setCurrentPage(savedPage);
+          setHasMore(restoredTransactions.length === 20);
 
-          // 必要なページ数だけ移動
-          for (let i = 0; i < pagesToMove; i++) {
-            await nextPage();
-            // 各ページ移動後に読み込み完了を待つ（十分な時間を確保）
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-
-          // 復元完了
-          shouldRestorePageRef.current = false;
-          isRestoringPageRef.current = false;
-        };
-
-        // 読み込み完了を待ってからページを復元
-        requestAnimationFrame(() => {
+          // スクロール位置を復元
           requestAnimationFrame(() => {
-            restorePage();
+            requestAnimationFrame(() => {
+              if (scrollPositionRef.current > 0) {
+                window.scrollTo({
+                  top: scrollPositionRef.current,
+                  behavior: "auto",
+                });
+              }
+              shouldRestorePageRef.current = false;
+            });
           });
-        });
-      } else if (currentPage > savedPage && hasPrevious) {
-        // 現在のページが保存したページより大きい場合、previousPageで復元
-        isRestoringPageRef.current = true;
-
-        const restorePage = async () => {
-          const targetPage = savedPageRef.current;
-          const pagesToMove = Math.min(currentPage - targetPage, 10); // 最大10ページまで
-
-          // 読み込み完了を待ってから開始
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          // 必要なページ数だけ戻る
-          for (let i = 0; i < pagesToMove; i++) {
-            await previousPage();
-            // 各ページ移動後に読み込み完了を待つ
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-
-          // 復元完了
+        } catch (error) {
+          console.error("ページ復元エラー:", error);
           shouldRestorePageRef.current = false;
-          isRestoringPageRef.current = false;
-        };
+        } finally {
+          setLoading(false);
+        }
+      };
 
+      restorePage();
+    } else {
+      // ページが変わっていない場合、スクロール位置のみ復元
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            restorePage();
-          });
+          if (scrollPositionRef.current > 0) {
+            window.scrollTo({
+              top: scrollPositionRef.current,
+              behavior: "auto",
+            });
+          }
+          shouldRestorePageRef.current = false;
         });
-      }
-    } else if (currentPage === savedPage) {
-      // ページが既に正しい場合はフラグをクリア
-      shouldRestorePageRef.current = false;
-      isRestoringPageRef.current = false;
+      });
     }
-  }, [loading, currentPage, hasMore, hasPrevious, nextPage, previousPage]);
+  }, [
+    loading,
+    currentPage,
+    user,
+    currentFilter,
+    setCurrentPage,
+    setLastDoc,
+    setPageHistory,
+    setTransactions,
+    setLoading,
+    setHasMore,
+  ]);
 
   // 取引と残高調整を統合
   // 前回のキーと結果を保存して、内容が変わったときだけ再計算する
@@ -335,11 +346,8 @@ export default function TransactionsPage() {
 
   // 編集開始時に日付を設定
   const handleEdit = (id: string) => {
-    // 編集ダイアログを開く前に、現在のページとスクロール位置を保存
+    // 編集ダイアログを開く前に、スクロール位置を保存
     scrollPositionRef.current = window.scrollY;
-    savedPageRef.current = currentPage;
-    shouldRestorePageRef.current = false;
-    isRestoringPageRef.current = false;
 
     // 残高確認/修正の場合
     if (id.startsWith("adjustment-")) {

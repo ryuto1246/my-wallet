@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/firebase/auth";
 import Link from "next/link";
-import { Menu, LayoutDashboard, List, LogOut } from "lucide-react";
+import { Menu, LayoutDashboard, List, LogOut, FileText } from "lucide-react";
+import { useState } from "react";
+import { ParentAdvanceInvoiceDialog } from "@/components/organisms";
 
 export default function DashboardLayout({
   children,
@@ -25,7 +27,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated, user } = useAuth();
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -87,6 +90,12 @@ export default function DashboardLayout({
               >
                 取引一覧
               </Link>
+              <button
+                onClick={() => setInvoiceDialogOpen(true)}
+                className="px-3 md:px-5 py-1.5 md:py-2.5 rounded-lg md:rounded-xl text-sm md:text-base text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass"
+              >
+                請求書PDF
+              </button>
             </nav>
           </div>
 
@@ -138,6 +147,13 @@ export default function DashboardLayout({
                     <span>取引一覧</span>
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setInvoiceDialogOpen(true)}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>請求書PDF</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleSignOut}
@@ -156,6 +172,15 @@ export default function DashboardLayout({
       <main className="container mx-auto px-5 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 lg:py-10">
         {children}
       </main>
+
+      {/* 請求書ダイアログ */}
+      {user?.id && (
+        <ParentAdvanceInvoiceDialog
+          open={invoiceDialogOpen}
+          onOpenChange={setInvoiceDialogOpen}
+          userId={user.id}
+        />
+      )}
     </div>
   );
 }

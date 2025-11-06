@@ -14,4 +14,5 @@ export { BatchImageRecognitionDialog } from "./BatchImageRecognitionDialog";
 export { PaymentMethodBalances } from "./PaymentMethodBalances";
 export { BalanceAdjustmentDialog } from "./BalanceAdjustmentDialog";
 export { TransferFormDialog } from "./TransferFormDialog";
+export { ParentAdvanceInvoiceDialog } from "./ParentAdvanceInvoiceDialog";
 

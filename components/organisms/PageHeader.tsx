@@ -4,6 +4,8 @@
  * Liquid Glassスタイルを適用
  */
 
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
