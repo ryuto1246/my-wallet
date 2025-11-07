@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -86,18 +86,42 @@ export function TransferFormDialog({
   const amount = watch("amount");
 
   // デフォルト値が変更されたらフォームをリセット
+  // ダイアログが開かれた時（false → true）またはdefaultValuesが変更された時にリセット
+  const prevOpenRef = useRef<boolean>(false);
+  const prevDefaultValuesKeyRef = useRef<string>('');
+  
   useEffect(() => {
-    if (open && defaultValues) {
+    const defaultValuesKey = defaultValues ? JSON.stringify(defaultValues) : '';
+    const isOpening = open && !prevOpenRef.current;
+    const isDefaultValuesChanged = open && defaultValues && prevOpenRef.current && defaultValuesKey !== prevDefaultValuesKeyRef.current;
+    
+    // ダイアログが開かれた時（false → true）のみリセット
+    if (isOpening) {
+      if (defaultValues) {
+        // 編集モード：defaultValuesでリセット
+        reset(defaultValues);
+      } else {
+        // 新規作成モード：空の値でリセット
+        reset({
+          date: new Date(),
+          amount: 0,
+          from: "",
+          to: "",
+          description: "口座間振替",
+          memo: "",
+        });
+      }
+    }
+    
+    // defaultValuesが変更された場合（編集モードで別のアイテムを編集する場合など）
+    if (isDefaultValuesChanged) {
       reset(defaultValues);
-    } else if (open && !defaultValues) {
-      reset({
-        date: new Date(),
-        amount: 0,
-        from: "",
-        to: "",
-        description: "口座間振替",
-        memo: "",
-      });
+    }
+    
+    // 状態を更新
+    prevOpenRef.current = open;
+    if (open && defaultValues) {
+      prevDefaultValuesKeyRef.current = defaultValuesKey;
     }
   }, [open, defaultValues, reset]);
 

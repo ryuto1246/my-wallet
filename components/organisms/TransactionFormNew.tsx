@@ -117,6 +117,7 @@ export function TransactionFormNew({
       description: "",
       paymentMethod: "",
       isIncome: false,
+      isTransfer: false,
       hasAdvance: false,
       memo: "",
       advance: undefined,
@@ -127,6 +128,18 @@ export function TransactionFormNew({
   // 前回のopen状態とdefaultValuesを追跡
   const prevOpenRef = useRef<boolean>(false);
   const prevDefaultValuesKeyRef = useRef<string>('');
+  
+  // フォームが開かれたときにisTransferを確実に設定
+  useEffect(() => {
+    if (open) {
+      const currentValue = form.getValues("isTransfer");
+      if (currentValue === undefined || currentValue === null) {
+        console.log("⚠️ isTransferが未設定のため、falseを設定します");
+        form.setValue("isTransfer", false, { shouldValidate: false });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   
   // defaultValuesが変更されたら、フォームをリセット
   // ただし、ダイアログが開かれた時（false → true）のみ実行
@@ -147,6 +160,7 @@ export function TransactionFormNew({
           description: "",
           paymentMethod: "",
           isIncome: false,
+          isTransfer: false,
           hasAdvance: false,
           memo: "",
           advance: undefined,
@@ -170,6 +184,7 @@ export function TransactionFormNew({
           description: "",
           paymentMethod: "",
           isIncome: false,
+          isTransfer: false,
           hasAdvance: false,
           memo: "",
           advance: undefined,
@@ -189,6 +204,7 @@ export function TransactionFormNew({
         description: "",
         paymentMethod: "",
         isIncome: false,
+        isTransfer: false,
         hasAdvance: false,
         memo: "",
         advance: undefined,
@@ -396,6 +412,8 @@ export function TransactionFormNew({
   };
 
   const handleSubmit = async (data: TransactionFormValues) => {
+    console.log("🔵 handleSubmit 開始:", data);
+    console.log("🔵 isTransfer の値:", data.isTransfer, typeof data.isTransfer);
     setLoading(true);
     try {
       // ユーザーがAIサジェスチョンを修正した場合、学習データとして保存
@@ -436,8 +454,9 @@ export function TransactionFormNew({
       }
 
       // ユーザーが入力したキーワードを保存
-      const submitData = {
+      const submitData: TransactionFormValues = {
         ...data,
+        isTransfer: data.isTransfer ?? false,
         userKeyword: keyword.trim() || undefined,
       };
 
@@ -468,7 +487,15 @@ export function TransactionFormNew({
         </VisuallyHidden>
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSubmit)}
+            onSubmit={form.handleSubmit(
+              handleSubmit,
+              (errors) => {
+                console.error("❌ フォームバリデーションエラー:", errors);
+                const formValues = form.getValues();
+                console.error("📋 現在のフォーム値:", formValues);
+                console.error("📋 isTransfer の値:", formValues.isTransfer, typeof formValues.isTransfer);
+              }
+            )}
             className="space-y-3 md:space-y-6"
           >
             {/* 画像アップロードエリア */}
@@ -610,6 +637,20 @@ export function TransactionFormNew({
                 type="submit"
                 className="flex-1 h-10 md:h-10 text-sm"
                 disabled={loading}
+                onClick={(e) => {
+                  console.log("🟢 送信ボタンクリック");
+                  const formValues = form.getValues();
+                  console.log("📋 フォーム値:", formValues);
+                  const errors = form.formState.errors;
+                  console.log("⚠️ フォームエラー:", errors);
+                  
+                  // isTransferが未設定の場合はfalseを設定
+                  const currentIsTransfer = form.getValues("isTransfer");
+                  if (currentIsTransfer === undefined || currentIsTransfer === null) {
+                    console.log("⚠️ isTransferが未設定のため、送信前にfalseを設定します");
+                    form.setValue("isTransfer", false, { shouldValidate: true });
+                  }
+                }}
               >
                 {loading ? "保存中..." : mode === "create" ? "追加" : "更新"}
               </Button>
