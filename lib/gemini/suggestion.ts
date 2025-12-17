@@ -6,10 +6,16 @@ import { getGeminiModel } from './config';
 import { Category } from '@/types/category';
 import { CATEGORIES } from '@/constants/categories';
 import { STORE_TO_PURPOSE_MAPPING, DESCRIPTION_TEMPLATE_BASIC_PROMPT } from './prompts';
+import { cacheGet, cacheSet, makeCacheKey, normalizeText, roundAmount, TTL_24H, simpleHash } from '@/lib/ai/cache';
 
 import type { PaymentMethodValue } from '@/types/transaction';
 
 export interface SuggestionContext {
+  userId?: string;
+  priorHints?: {
+    topCandidates: Array<{ description: string; category: { main: string; sub: string }; weight: number }>;
+    aidPrior?: { friend: number; parent: number; none: number; typicalRatio?: number };
+  };
   amount?: number;
   paymentMethod?: PaymentMethodValue;
   timeOfDay?: string;
@@ -41,6 +47,31 @@ export const getMultipleAISuggestions = async (
   }
 
   try {
+    // ========= キャッシュ参照 =========
+    const keyParts = [
+      'ai_suggest_v2', // バージョニング
+      context?.userId || 'anonymous',
+      normalizeText(inputText),
+      roundAmount(context?.amount, 100),
+      context?.paymentMethod || '',
+      context?.timeOfDay || '',
+      context?.dayOfWeek || '',
+      // priorHintsの内容に依存（短いハッシュに圧縮）
+      context?.priorHints
+        ? simpleHash(
+            JSON.stringify({
+              tc: (context.priorHints.topCandidates || []).map((c) => [c.description, c.category.main, c.category.sub, Math.round((c.weight || 0) * 100) / 100]),
+              ap: context.priorHints.aidPrior || null,
+            })
+          )
+        : 'no_hints',
+    ];
+    const cacheKey = makeCacheKey(keyParts);
+    const cached = cacheGet<AISuggestion[]>(cacheKey);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      return cached;
+    }
+
     // 全カテゴリーをリスト化（収入・支出の両方）
     const categoryList = CATEGORIES
       .map(cat => `- ${cat.isIncome ? '【収入】' : '【支出】'}${cat.main}: ${cat.subs.join(', ')}`)
@@ -54,10 +85,32 @@ export const getMultipleAISuggestions = async (
 - 曜日: ${context.dayOfWeek || '不明'}
 ` : '';
 
+    // Prior Hints（履歴由来のヒント）をJSONとして埋め込み
+    const priorHintsSection = context?.priorHints
+      ? `
+【ユーザー履歴ヒント（JSON）】
+- topCandidates（最大3件、weightは0-1）:
+${JSON.stringify(
+  (context.priorHints.topCandidates || []).slice(0, 3).map((c) => ({
+    desc: c.description?.slice(0, 30) || '',
+    main: c.category?.main || '',
+    sub: c.category?.sub || '',
+    w: Math.max(0, Math.min(1, Number.isFinite(c.weight as number) ? (c.weight as number) : 0)),
+  })),
+  null,
+  2
+)}
+- aidPrior:
+${JSON.stringify(context.priorHints.aidPrior || { friend: 0, parent: 0, none: 1 }, null, 2)}
+→ 可能なら上位候補を優先。ヒントと矛盾する場合はもっとも尤もらしい案を選択。
+`
+      : '';
+
     const prompt = `あなたは家計簿アプリのAIアシスタントです。ユーザーの入力から、適切なカテゴリーと具体的な項目名を1〜5パターン提案してください（最も可能性が高いものから順に、目安は3パターン）。
 
 入力テキスト: "${inputText}"
 ${contextInfo}
+${priorHintsSection}
 
 **【ステップ1】店舗名・サービス名を特定**
 入力テキストから店舗名やサービス名を抽出し、以下のマッピングを参照して用途を推測してください：
@@ -133,7 +186,7 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
       return [];
     }
 
-    return parsed
+    const suggestions = parsed
       .filter(p => p.mainCategory && p.subCategory && p.description && typeof p.isIncome === 'boolean')
       .map(p => {
         // カテゴリーの検証とフォールバック
@@ -174,6 +227,10 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
         };
       })
       .slice(0, 5); // 最大5パターン
+
+    // ========= キャッシュ保存 =========
+    cacheSet(cacheKey, suggestions, TTL_24H);
+    return suggestions;
 
   } catch (error: unknown) {
     console.error('Error getting multiple AI suggestions:', error);

@@ -36,6 +36,7 @@ export function SuggestionCarousel({
   amount,
 }: SuggestionCarouselProps) {
   const isIncome = form.watch("isIncome");
+  const isTransfer = form.watch("isTransfer");
   const categoryMain = form.watch("categoryMain");
   const categorySub = form.watch("categorySub");
   const description = form.watch("description");
@@ -78,6 +79,26 @@ export function SuggestionCarousel({
         return "中確信度";
       case "low":
         return "低確信度";
+    }
+  };
+
+  // 三択ハンドラ
+  const handleSelectType = (type: "expense" | "income" | "transfer") => {
+    if (type === "income") {
+      form.setValue("isIncome", true);
+      form.setValue("isTransfer", false);
+      form.setValue("hasAdvance", false);
+      form.setValue("advance", undefined);
+    } else if (type === "expense") {
+      form.setValue("isIncome", false);
+      form.setValue("isTransfer", false);
+    } else if (type === "transfer") {
+      form.setValue("isIncome", false);
+      form.setValue("isTransfer", true);
+      form.setValue("hasAdvance", false);
+      form.setValue("advance", undefined);
+      form.setValue("categoryMain", "振替");
+      form.setValue("categorySub", "口座間振替");
     }
   };
 
@@ -147,18 +168,10 @@ export function SuggestionCarousel({
               )}
             </div>
 
-            {/* カテゴリー情報 - 3列レイアウト（収入/支出 + メイン + サブ） */}
+            {/* カテゴリー情報 - 3列レイアウト（種類 + メイン + サブ） */}
             <div className="grid grid-cols-3 gap-2">
-              {/* 収入/支出 */}
-              <div
-                className="group relative rounded-lg border border-transparent bg-white/60 hover:bg-white/80 hover:border-purple-200 transition-all cursor-pointer"
-                onClick={() => {
-                  const newIsIncome = !isIncome;
-                  form.setValue("isIncome", newIsIncome);
-                  form.setValue("categoryMain", "");
-                  form.setValue("categorySub", "");
-                }}
-              >
+              {/* 種類（三択） */}
+              <div className="group relative rounded-lg border border-transparent bg-white/60 hover:bg-white/80 hover:border-purple-200 transition-all">
                 <div className="p-2.5">
                   <div className="flex items-start justify-between mb-1">
                     <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">
@@ -166,14 +179,42 @@ export function SuggestionCarousel({
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-base">{isIncome ? "💰" : "💸"}</span>
-                    <span
-                      className={`text-sm font-bold ${
-                        isIncome ? "text-green-600" : "text-blue-600"
-                      }`}
-                    >
-                      {isIncome ? "収入" : "支出"}
-                    </span>
+                    <div className="inline-flex gap-1">
+                      {[
+                        {
+                          key: "expense",
+                          label: "支出",
+                          active: !isIncome && !isTransfer,
+                        },
+                        {
+                          key: "income",
+                          label: "収入",
+                          active: isIncome && !isTransfer,
+                        },
+                        { key: "transfer", label: "振替", active: isTransfer },
+                      ].map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() =>
+                            handleSelectType(
+                              t.key as "expense" | "income" | "transfer"
+                            )
+                          }
+                          className={`px-2 py-1 rounded-md text-xs font-bold transition-all ${
+                            t.active
+                              ? t.key === "income"
+                                ? "bg-green-600 text-white"
+                                : t.key === "transfer"
+                                ? "bg-purple-600 text-white"
+                                : "bg-blue-600 text-white"
+                              : "bg-white text-gray-700 border"
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -187,13 +228,14 @@ export function SuggestionCarousel({
                     </span>
                   </div>
                   <Select
-                    key={`main-${isIncome}-${categoryMain}`}
+                    key={`main-${isIncome}-${isTransfer}-${categoryMain}`}
                     onValueChange={(value) => {
                       console.log("📝 メインカテゴリー変更:", value);
                       form.setValue("categoryMain", value);
                       form.setValue("categorySub", "");
                     }}
                     value={categoryMain || undefined}
+                    disabled={isTransfer}
                   >
                     <SelectTrigger className="border-0 bg-transparent p-0 h-auto hover:bg-transparent focus:ring-0 focus:ring-offset-0">
                       <SelectValue
@@ -208,13 +250,14 @@ export function SuggestionCarousel({
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {CATEGORIES.filter(
-                        (cat) => cat.isIncome === isIncome
-                      ).map((category) => (
-                        <SelectItem key={category.main} value={category.main}>
-                          {category.main}
-                        </SelectItem>
-                      ))}
+                      {!isTransfer &&
+                        CATEGORIES.filter(
+                          (cat) => cat.isIncome === isIncome
+                        ).map((category) => (
+                          <SelectItem key={category.main} value={category.main}>
+                            {category.main}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -223,7 +266,7 @@ export function SuggestionCarousel({
               {/* サブカテゴリー */}
               <div
                 className={`group relative rounded-lg border border-transparent transition-all ${
-                  categoryMain
+                  categoryMain && !isTransfer
                     ? "bg-white/60 hover:bg-white/80 hover:border-purple-200 cursor-pointer"
                     : "bg-gray-100/60 cursor-not-allowed"
                 }`}
@@ -235,19 +278,21 @@ export function SuggestionCarousel({
                     </span>
                   </div>
                   <Select
-                    key={`sub-${categoryMain}-${categorySub}`}
+                    key={`sub-${isTransfer}-${categoryMain}-${categorySub}`}
                     onValueChange={(value) => {
                       console.log("📝 サブカテゴリー変更:", value);
                       form.setValue("categorySub", value);
                     }}
                     value={categorySub || undefined}
-                    disabled={!categoryMain}
+                    disabled={!categoryMain || isTransfer}
                   >
                     <SelectTrigger className="border-0 bg-transparent p-0 h-auto hover:bg-transparent focus:ring-0 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-100">
                       <SelectValue
                         placeholder={
                           <span className="text-gray-400 text-sm">
-                            {categoryMain ? "選択" : "先にメイン"}
+                            {categoryMain && !isTransfer
+                              ? "選択"
+                              : "先にメイン"}
                           </span>
                         }
                         className="text-sm font-bold text-gray-900"
@@ -258,11 +303,12 @@ export function SuggestionCarousel({
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {getSubCategories(categoryMain).map((sub) => (
-                        <SelectItem key={sub} value={sub}>
-                          {sub}
-                        </SelectItem>
-                      ))}
+                      {!isTransfer &&
+                        getSubCategories(categoryMain).map((sub) => (
+                          <SelectItem key={sub} value={sub}>
+                            {sub}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -270,110 +316,115 @@ export function SuggestionCarousel({
             </div>
 
             {/* 立替設定 */}
-            {!isIncome && advanceType && advanceType !== null && (
-              <div className="rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-white p-3">
-                {/* 立替金額入力 */}
-                <div className="mb-3">
-                  <label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                    立替金額（
-                    {advanceType === "parent" ? "親が負担" : "友達の分"}）
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 text-sm font-bold">
-                        ¥
-                      </span>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        className="w-full bg-white border border-blue-300 rounded-lg pl-8 pr-3 py-2 text-lg font-bold text-blue-600 placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                        value={advanceAmount || ""}
-                        onChange={(e) => {
-                          const value = Number(e.target.value) || 0;
-                          const total = amount || 0;
-                          const personal = Math.max(0, total - value);
+            {!isIncome &&
+              !isTransfer &&
+              advanceType &&
+              advanceType !== null && (
+                <div className="rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-white p-3">
+                  {/* 立替金額入力 */}
+                  <div className="mb-3">
+                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                      {advanceType === "parent" ? "援助金額" : "立替金額"}（
+                      {advanceType === "parent" ? "援助" : "友達の分"}）
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 text-sm font-bold">
+                          ¥
+                        </span>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          className="w-full bg-white border border-blue-300 rounded-lg pl-8 pr-3 py-2 text-lg font-bold text-blue-600 placeholder:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          value={advanceAmount || ""}
+                          onChange={(e) => {
+                            const value = Number(e.target.value) || 0;
+                            const total = amount || 0;
+                            const personal = Math.max(0, total - value);
 
-                          // advance オブジェクトを更新
+                            // advance オブジェクトを更新
+                            if (!form.getValues("advance")) {
+                              form.setValue("advance", {
+                                type: advanceType as "friend" | "parent",
+                                totalAmount: total,
+                                advanceAmount: value,
+                                personalAmount: personal,
+                                memo: "",
+                              });
+                            } else {
+                              form.setValue("advance.advanceAmount", value);
+                              form.setValue("advance.personalAmount", personal);
+                              form.setValue("advance.totalAmount", total);
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const total = amount || 0;
                           if (!form.getValues("advance")) {
                             form.setValue("advance", {
                               type: advanceType as "friend" | "parent",
                               totalAmount: total,
-                              advanceAmount: value,
-                              personalAmount: personal,
+                              advanceAmount: total,
+                              personalAmount: 0,
                               memo: "",
                             });
                           } else {
-                            form.setValue("advance.advanceAmount", value);
-                            form.setValue("advance.personalAmount", personal);
+                            form.setValue("advance.advanceAmount", total);
+                            form.setValue("advance.personalAmount", 0);
                             form.setValue("advance.totalAmount", total);
                           }
                         }}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const total = amount || 0;
-                        if (!form.getValues("advance")) {
-                          form.setValue("advance", {
-                            type: advanceType as "friend" | "parent",
-                            totalAmount: total,
-                            advanceAmount: total,
-                            personalAmount: 0,
-                            memo: "",
-                          });
-                        } else {
-                          form.setValue("advance.advanceAmount", total);
-                          form.setValue("advance.personalAmount", 0);
-                          form.setValue("advance.totalAmount", total);
-                        }
-                      }}
-                      className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                    >
-                      全額
-                    </button>
-                  </div>
-                </div>
-
-                {/* 内訳表示 - 計算式風 */}
-                <div className="bg-white rounded-lg p-2.5 text-xs">
-                  <div className="flex items-center justify-center gap-2 flex-wrap">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-gray-500">総額</span>
-                      <span className="font-bold text-gray-900">
-                        ¥{amount.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <span className="text-gray-400">=</span>
-
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-blue-500">立替</span>
-                      <span className="font-bold text-blue-600">
-                        ¥{(advanceAmount || 0).toLocaleString()}
-                      </span>
-                    </div>
-
-                    <span className="text-gray-400">+</span>
-
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-gray-500">自己</span>
-                      <span className="font-bold text-gray-900">
-                        ¥{(personalAmount || 0).toLocaleString()}
-                      </span>
+                        className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        全額
+                      </button>
                     </div>
                   </div>
-                </div>
 
-                {/* 計算確認 */}
-                {amount > 0 &&
-                  (advanceAmount || 0) + (personalAmount || 0) !== amount && (
-                    <div className="mt-2 text-xs text-amber-600 bg-amber-50 rounded-lg p-2 text-center">
-                      ⚠️ 合計が支払総額と一致していません
+                  {/* 内訳表示 - 計算式風 */}
+                  <div className="bg-white rounded-lg p-2.5 text-xs">
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-gray-500">総額</span>
+                        <span className="font-bold text-gray-900">
+                          ¥{amount.toLocaleString()}
+                        </span>
+                      </div>
+
+                      <span className="text-gray-400">=</span>
+
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-blue-500">
+                          {advanceType === "parent" ? "援助" : "立替"}
+                        </span>
+                        <span className="font-bold text-blue-600">
+                          ¥{(advanceAmount || 0).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <span className="text-gray-400">+</span>
+
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-gray-500">自己</span>
+                        <span className="font-bold text-gray-900">
+                          ¥{(personalAmount || 0).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                  )}
-              </div>
-            )}
+                  </div>
+
+                  {/* 計算確認 */}
+                  {amount > 0 &&
+                    (advanceAmount || 0) + (personalAmount || 0) !== amount && (
+                      <div className="mt-2 text-xs text-amber-600 bg-amber-50 rounded-lg p-2 text-center">
+                        ⚠️ 合計が支払総額と一致していません
+                      </div>
+                    )}
+                </div>
+              )}
           </div>
         </div>
       </div>

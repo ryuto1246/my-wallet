@@ -10,6 +10,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +39,7 @@ import {
   getDayOfWeek,
   getPaymentMethodFromService,
 } from "@/lib/helpers";
+import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 
 interface TransactionFormNewProps {
   open: boolean;
@@ -83,7 +86,7 @@ export function TransactionFormNew({
 
   // サジェストの状態変化をログに記録
   useEffect(() => {
-    console.log('📊 サジェスト状態:', {
+    console.log("📊 サジェスト状態:", {
       suggestionsCount: suggestions.length,
       isLoading: aiLoading,
       error: aiError,
@@ -91,7 +94,7 @@ export function TransactionFormNew({
       aiAvailable,
     });
     if (suggestions.length > 0) {
-      console.log('✅ サジェスト取得成功:', suggestions);
+      console.log("✅ サジェスト取得成功:", suggestions);
     }
   }, [suggestions, aiLoading, aiError, quotaExceeded, aiAvailable]);
 
@@ -127,8 +130,8 @@ export function TransactionFormNew({
 
   // 前回のopen状態とdefaultValuesを追跡
   const prevOpenRef = useRef<boolean>(false);
-  const prevDefaultValuesKeyRef = useRef<string>('');
-  
+  const prevDefaultValuesKeyRef = useRef<string>("");
+
   // フォームが開かれたときにisTransferを確実に設定
   useEffect(() => {
     if (open) {
@@ -140,14 +143,18 @@ export function TransactionFormNew({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-  
+
   // defaultValuesが変更されたら、フォームをリセット
   // ただし、ダイアログが開かれた時（false → true）のみ実行
   useEffect(() => {
-    const defaultValuesKey = defaultValues ? JSON.stringify(defaultValues) : '';
+    const defaultValuesKey = defaultValues ? JSON.stringify(defaultValues) : "";
     const isOpening = open && !prevOpenRef.current;
-    const isDefaultValuesChanged = open && defaultValues && prevOpenRef.current && defaultValuesKey !== prevDefaultValuesKeyRef.current;
-    
+    const isDefaultValuesChanged =
+      open &&
+      defaultValues &&
+      prevOpenRef.current &&
+      defaultValuesKey !== prevDefaultValuesKeyRef.current;
+
     // ダイアログが開かれた時（false → true）のみリセット
     if (isOpening) {
       if (defaultValues) {
@@ -193,7 +200,7 @@ export function TransactionFormNew({
         setInitialKeyword(null);
       }
     }
-    
+
     // defaultValuesが変更された場合（編集モードで別のアイテムを編集する場合など）
     if (isDefaultValuesChanged) {
       const resetValues = {
@@ -216,7 +223,7 @@ export function TransactionFormNew({
       setKeyword(initKeyword);
       setInitialKeyword(initKeyword);
     }
-    
+
     // 状態を更新
     prevOpenRef.current = open;
     if (open && defaultValues) {
@@ -227,6 +234,7 @@ export function TransactionFormNew({
 
   const amount = form.watch("amount");
   const paymentMethod = form.watch("paymentMethod");
+  const isTransfer = form.watch("isTransfer");
 
   // 編集モードかどうかを判定
   const isEditMode = mode === "edit" && defaultValues;
@@ -257,7 +265,7 @@ export function TransactionFormNew({
 
   // 金額とキーワードが変更されたら自動的にAIサジェスチョンを取得
   useEffect(() => {
-    console.log('🔍 サジェスト取得チェック:', {
+    console.log("🔍 サジェスト取得チェック:", {
       aiAvailable,
       keyword: keyword.trim(),
       keywordLength: keyword.length,
@@ -268,13 +276,13 @@ export function TransactionFormNew({
     });
 
     if (!aiAvailable) {
-      console.log('⚠️ AIが利用できません');
+      console.log("⚠️ AIが利用できません");
       clearSuggestion();
       return;
     }
 
     if (!keyword.trim() || keyword.length < 2) {
-      console.log('⚠️ キーワードが短すぎます:', keyword);
+      console.log("⚠️ キーワードが短すぎます:", keyword);
       clearSuggestion();
       return;
     }
@@ -283,25 +291,25 @@ export function TransactionFormNew({
     const isInitialKeyword =
       mode === "edit" && initialKeyword !== null && keyword === initialKeyword;
     if (isInitialKeyword) {
-      console.log('⚠️ 編集モードで初期キーワードから変更されていません');
+      console.log("⚠️ 編集モードで初期キーワードから変更されていません");
       return;
     }
 
-    console.log('✅ サジェスト取得を開始:', { keyword, amount, paymentMethod });
+    console.log("✅ サジェスト取得を開始:", { keyword, amount, paymentMethod });
 
     const timer = setTimeout(() => {
-      console.log('🚀 サジェスト取得実行:', { keyword, amount, paymentMethod });
+      console.log("🚀 サジェスト取得実行:", { keyword, amount, paymentMethod });
       getMultipleSuggestions(keyword, {
         amount,
         paymentMethod: paymentMethod as PaymentMethodValue | undefined,
         // isIncomeはAIに判定させるので送らない
       }).catch((err) => {
-        console.error('❌ サジェスト取得エラー:', err);
+        console.error("❌ サジェスト取得エラー:", err);
       });
     }, 500); // デバウンス
 
     return () => {
-      console.log('🧹 タイマーをクリア');
+      console.log("🧹 タイマーをクリア");
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -478,6 +486,36 @@ export function TransactionFormNew({
     }
   };
 
+  // 振替選択時の自動設定（カテゴリ固定、立替クリア、説明初期値）
+  useEffect(() => {
+    if (isTransfer) {
+      form.setValue("categoryMain", "振替", { shouldValidate: false });
+      form.setValue("categorySub", "口座間振替", { shouldValidate: false });
+      form.setValue("hasAdvance", false, { shouldValidate: false });
+      form.setValue("advance", undefined, { shouldValidate: false });
+      // 振替元は上部の決済方法（paymentMethod）を自動反映
+      const pm = form.getValues("paymentMethod") as PaymentMethodValue | "";
+      if (pm) {
+        form.setValue("transfer.from", pm as PaymentMethodValue, {
+          shouldValidate: true,
+        });
+      }
+      if (!form.getValues("description")) {
+        form.setValue("description", "口座間振替", { shouldValidate: false });
+      }
+    }
+  }, [isTransfer, form]);
+
+  // 振替中はpaymentMethodの変更をtransfer.fromへ同期
+  useEffect(() => {
+    if (isTransfer) {
+      const pm = paymentMethod as PaymentMethodValue | "";
+      form.setValue("transfer.from", (pm || "") as PaymentMethodValue, {
+        shouldValidate: true,
+      });
+    }
+  }, [paymentMethod, isTransfer, form]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="md:max-w-2xl">
@@ -487,15 +525,16 @@ export function TransactionFormNew({
         </VisuallyHidden>
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(
-              handleSubmit,
-              (errors) => {
-                console.error("❌ フォームバリデーションエラー:", errors);
-                const formValues = form.getValues();
-                console.error("📋 現在のフォーム値:", formValues);
-                console.error("📋 isTransfer の値:", formValues.isTransfer, typeof formValues.isTransfer);
-              }
-            )}
+            onSubmit={form.handleSubmit(handleSubmit, (errors) => {
+              console.error("❌ フォームバリデーションエラー:", errors);
+              const formValues = form.getValues();
+              console.error("📋 現在のフォーム値:", formValues);
+              console.error(
+                "📋 isTransfer の値:",
+                formValues.isTransfer,
+                typeof formValues.isTransfer
+              );
+            })}
             className="space-y-3 md:space-y-6"
           >
             {/* 画像アップロードエリア */}
@@ -555,19 +594,22 @@ export function TransactionFormNew({
             {!aiAvailable && keyword.trim().length >= 2 && (
               <div className="text-center py-2 md:py-4">
                 <div className="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
-                  AI APIキーが設定されていません。環境変数にNEXT_PUBLIC_GEMINI_API_KEYを設定してください。
+                  AI
+                  APIキーが設定されていません。環境変数にNEXT_PUBLIC_GEMINI_API_KEYを設定してください。
                 </div>
               </div>
             )}
 
             {/* キーワードが短すぎる場合 */}
-            {aiAvailable && keyword.trim().length > 0 && keyword.trim().length < 2 && (
-              <div className="text-center py-2 md:py-4">
-                <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-                  キーワードは2文字以上入力してください
+            {aiAvailable &&
+              keyword.trim().length > 0 &&
+              keyword.trim().length < 2 && (
+                <div className="text-center py-2 md:py-4">
+                  <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+                    キーワードは2文字以上入力してください
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* レートリミットエラーの場合 */}
             {quotaExceeded && (
@@ -579,13 +621,16 @@ export function TransactionFormNew({
             )}
 
             {/* その他のエラーの場合 */}
-            {!aiLoading && !quotaExceeded && aiError && keyword.trim().length >= 2 && (
-              <div className="text-center py-2 md:py-4">
-                <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
-                  {aiError}
+            {!aiLoading &&
+              !quotaExceeded &&
+              aiError &&
+              keyword.trim().length >= 2 && (
+                <div className="text-center py-2 md:py-4">
+                  <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
+                    {aiError}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* 編集モード時は現在の情報を表示、新規作成時またはユーザーがキーワードを入力した時はAIサジェスチョンを表示 */}
             {!aiLoading && !quotaExceeded && (
@@ -622,6 +667,76 @@ export function TransactionFormNew({
               </div>
             )}
 
+            {/* 振替フィールド（振替選択時のみ表示） */}
+            {isTransfer && (
+              <div className="space-y-3 md:space-y-4 p-3 md:p-4 border rounded-lg bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs md:text-sm text-gray-600">
+                      振替元（自動）
+                    </Label>
+                    <select
+                      className="w-full mt-1 bg-white/60 backdrop-blur-sm border-0 rounded-lg md:rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all cursor-not-allowed"
+                      value={paymentMethod || ""}
+                      disabled
+                    >
+                      <option value="">選択してください</option>
+                      {PAYMENT_METHODS.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs md:text-sm text-gray-600">
+                      振替先
+                    </Label>
+                    <select
+                      className="w-full mt-1 bg-white/60 backdrop-blur-sm border-0 rounded-lg md:rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
+                      value={form.watch("transfer.to") || ""}
+                      onChange={(e) =>
+                        form.setValue(
+                          "transfer.to",
+                          e.target.value as PaymentMethodValue,
+                          { shouldValidate: true }
+                        )
+                      }
+                    >
+                      <option value="">選択してください</option>
+                      {PAYMENT_METHODS.map((m) => (
+                        <option
+                          key={m.value}
+                          value={m.value}
+                          disabled={m.value === (paymentMethod || "")}
+                        >
+                          {m.label}
+                          {m.value === (paymentMethod || "")
+                            ? "（振替元）"
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs md:text-sm text-gray-600">
+                    説明
+                  </Label>
+                  <Input
+                    className="mt-1"
+                    value={form.watch("description") || ""}
+                    onChange={(e) =>
+                      form.setValue("description", e.target.value, {
+                        shouldValidate: true,
+                      })
+                    }
+                    placeholder="口座間振替"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* 送信ボタン */}
             <div className="flex gap-2 md:gap-4 pt-1">
               <Button
@@ -637,18 +752,25 @@ export function TransactionFormNew({
                 type="submit"
                 className="flex-1 h-10 md:h-10 text-sm"
                 disabled={loading}
-                onClick={(e) => {
+                onClick={() => {
                   console.log("🟢 送信ボタンクリック");
                   const formValues = form.getValues();
                   console.log("📋 フォーム値:", formValues);
                   const errors = form.formState.errors;
                   console.log("⚠️ フォームエラー:", errors);
-                  
+
                   // isTransferが未設定の場合はfalseを設定
                   const currentIsTransfer = form.getValues("isTransfer");
-                  if (currentIsTransfer === undefined || currentIsTransfer === null) {
-                    console.log("⚠️ isTransferが未設定のため、送信前にfalseを設定します");
-                    form.setValue("isTransfer", false, { shouldValidate: true });
+                  if (
+                    currentIsTransfer === undefined ||
+                    currentIsTransfer === null
+                  ) {
+                    console.log(
+                      "⚠️ isTransferが未設定のため、送信前にfalseを設定します"
+                    );
+                    form.setValue("isTransfer", false, {
+                      shouldValidate: true,
+                    });
                   }
                 }}
               >

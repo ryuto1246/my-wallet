@@ -240,15 +240,16 @@ export function BatchImageRecognitionDialog({
             : undefined);
 
         // 立替情報を保存
-        const advance = data.hasAdvance && data.advance
-          ? {
-              type: data.advance.type,
-              totalAmount: data.advance.totalAmount,
-              advanceAmount: data.advance.advanceAmount,
-              personalAmount: data.advance.personalAmount,
-              memo: data.advance.memo,
-            }
-          : undefined;
+        const advance =
+          data.hasAdvance && data.advance
+            ? {
+                type: data.advance.type,
+                totalAmount: data.advance.totalAmount,
+                advanceAmount: data.advance.advanceAmount,
+                personalAmount: data.advance.personalAmount,
+                memo: data.advance.memo,
+              }
+            : undefined;
 
         return {
           ...item,
@@ -369,7 +370,8 @@ export function BatchImageRecognitionDialog({
                 type: advance.type || null,
                 totalAmount: advance.totalAmount || transaction.amount || 0,
                 advanceAmount: advance.advanceAmount || 0,
-                personalAmount: advance.personalAmount || transaction.amount || 0,
+                personalAmount:
+                  advance.personalAmount || transaction.amount || 0,
                 memo: advance.memo,
               }
             : undefined,
@@ -549,6 +551,14 @@ export function BatchImageRecognitionDialog({
                     isDuplicate={item.isDuplicate}
                     duplicateReason={item.duplicateReason}
                     matchingTransactions={item.matchingTransactions}
+                    advance={item.advance}
+                    inferredType={
+                      item.transaction.suggestedCategory?.main === "振替"
+                        ? "transfer"
+                        : item.transaction.suggestedCategory?.main === "収入"
+                        ? "income"
+                        : "expense"
+                    }
                     onToggleSelect={() => toggleSelection(index)}
                     onEdit={() => handleItemClick(index)}
                   />

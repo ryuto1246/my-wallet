@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/form";
 import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 import type { TransactionFormValues } from "@/lib/validations/transaction";
+import { useEffect } from "react";
 
 interface TransactionAmountInputProps {
   control: Control<TransactionFormValues>;
@@ -42,6 +43,8 @@ export function TransactionAmountInput({
   amount,
 }: TransactionAmountInputProps) {
   const advanceType = watch("advance")?.type;
+  const isIncome = watch("isIncome");
+  const isTransfer = watch("isTransfer");
 
   const handleSelfClick = () => {
     setValue("hasAdvance", false);
@@ -71,6 +74,35 @@ export function TransactionAmountInput({
     }
   };
 
+  // 収入 or 振替が選択された場合は立替を無効化
+  useEffect(() => {
+    if (isIncome || isTransfer) {
+      setValue("hasAdvance", false);
+      setValue("advance", undefined);
+    }
+  }, [isIncome, isTransfer, setValue]);
+
+  // 三択セレクタで選択されたタイプに応じて状態を同期
+  const handleSelectType = (type: "expense" | "income" | "transfer") => {
+    if (type === "income") {
+      setValue("isIncome", true, { shouldValidate: true });
+      setValue("isTransfer", false, { shouldValidate: true });
+      setValue("hasAdvance", false, { shouldValidate: true });
+      setValue("advance", undefined, { shouldValidate: true });
+    } else if (type === "expense") {
+      setValue("isIncome", false, { shouldValidate: true });
+      setValue("isTransfer", false, { shouldValidate: true });
+    } else if (type === "transfer") {
+      setValue("isIncome", false, { shouldValidate: true });
+      setValue("isTransfer", true, { shouldValidate: true });
+      // 振替は立替不可・カテゴリは固定
+      setValue("hasAdvance", false, { shouldValidate: true });
+      setValue("advance", undefined, { shouldValidate: true });
+      setValue("categoryMain", "振替", { shouldValidate: true });
+      setValue("categorySub", "口座間振替", { shouldValidate: true });
+    }
+  };
+
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-3 md:p-8">
       {/* 装飾的な背景要素 */}
@@ -81,6 +113,33 @@ export function TransactionAmountInput({
       ></div>
 
       <div className="relative space-y-3 md:space-y-8">
+        {/* 取引タイプ（三択） */}
+        <div className="flex items-center justify-center gap-1 md:gap-2">
+          {[
+            { key: "expense", label: "支出", active: !isIncome && !isTransfer },
+            { key: "income", label: "収入", active: isIncome && !isTransfer },
+            { key: "transfer", label: "振替", active: isTransfer },
+          ].map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() =>
+                handleSelectType(t.key as "expense" | "income" | "transfer")
+              }
+              className={`px-3 md:px-4 py-1.5 md:py-2 rounded-md md:rounded-lg text-xs md:text-sm font-bold transition-all ${
+                t.active
+                  ? t.key === "income"
+                    ? "bg-green-600 text-white shadow-md"
+                    : t.key === "transfer"
+                    ? "bg-purple-600 text-white shadow-md"
+                    : "bg-blue-600 text-white shadow-md"
+                  : "bg-white/70 text-gray-700 hover:bg-white"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         {/* 日付と決済手段 - 上部にコンパクトに */}
         <div className="flex items-center justify-between gap-1 md:gap-4">
           <div className="flex items-center gap-1 md:gap-3">
@@ -196,53 +255,55 @@ export function TransactionAmountInput({
           />
         </div>
 
-        {/* 支払いタイプ選択 */}
-        <div className="flex justify-center">
-          <div className="inline-flex gap-0.5 md:gap-2 bg-white/60 backdrop-blur-sm rounded-lg md:rounded-xl p-1 md:p-2">
-            <button
-              type="button"
-              onClick={handleSelfClick}
-              className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
-                !advanceType
-                  ? "bg-gray-800 text-white shadow-md"
-                  : "bg-transparent text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <div className="flex items-center gap-0.5 md:gap-1.5">
-                <span className="text-xs md:text-base">💰</span>
-                <span className="hidden sm:inline">自分</span>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAdvanceClick("parent")}
-              className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
-                advanceType === "parent"
-                  ? "bg-green-500 text-white shadow-md"
-                  : "bg-transparent text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <div className="flex items-center gap-0.5 md:gap-1.5">
-                <span className="text-xs md:text-base">👨‍👩‍👧</span>
-                <span className="hidden sm:inline">親</span>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAdvanceClick("friend")}
-              className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
-                advanceType === "friend"
-                  ? "bg-blue-500 text-white shadow-md"
-                  : "bg-transparent text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <div className="flex items-center gap-0.5 md:gap-1.5">
-                <span className="text-xs md:text-base">👥</span>
-                <span className="hidden sm:inline">友達</span>
-              </div>
-            </button>
+        {/* 立替/援助タイプ選択（支出のみ表示、振替時は非表示） */}
+        {!isIncome && !isTransfer && (
+          <div className="flex justify-center">
+            <div className="inline-flex gap-0.5 md:gap-2 bg-white/60 backdrop-blur-sm rounded-lg md:rounded-xl p-1 md:p-2">
+              <button
+                type="button"
+                onClick={handleSelfClick}
+                className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
+                  !advanceType
+                    ? "bg-gray-800 text-white shadow-md"
+                    : "bg-transparent text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <div className="flex items-center gap-0.5 md:gap-1.5">
+                  <span className="text-xs md:text-base">💰</span>
+                  <span className="hidden sm:inline">自分</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdvanceClick("parent")}
+                className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
+                  advanceType === "parent"
+                    ? "bg-green-500 text-white shadow-md"
+                    : "bg-transparent text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <div className="flex items-center gap-0.5 md:gap-1.5">
+                  <span className="text-xs md:text-base">👨‍👩‍👧</span>
+                  <span className="hidden sm:inline">援助</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAdvanceClick("friend")}
+                className={`px-2 md:px-4 py-1 md:py-2 rounded-md md:rounded-lg text-xs font-bold transition-all ${
+                  advanceType === "friend"
+                    ? "bg-blue-500 text-white shadow-md"
+                    : "bg-transparent text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <div className="flex items-center gap-0.5 md:gap-1.5">
+                  <span className="text-xs md:text-base">👥</span>
+                  <span className="hidden sm:inline">友達</span>
+                </div>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/helpers/format";
 import type { RecognizedTransaction } from "@/types/image-recognition";
+import type { AdvanceInfo } from "@/types/advance";
 
 interface RecognizedTransactionItemProps {
   transaction: RecognizedTransaction;
@@ -26,6 +27,10 @@ interface RecognizedTransactionItemProps {
       sub: string;
     };
   }>;
+  // 画像から読み込み後に編集で付与された立替情報
+  advance?: Partial<AdvanceInfo>;
+  // 推測した取引タイプ
+  inferredType?: "income" | "expense" | "transfer";
   onToggleSelect: () => void;
   onEdit: () => void;
 }
@@ -36,6 +41,8 @@ export function RecognizedTransactionItem({
   isDuplicate,
   duplicateReason,
   matchingTransactions,
+  advance,
+  inferredType,
   onToggleSelect,
   onEdit,
 }: RecognizedTransactionItemProps) {
@@ -68,6 +75,30 @@ export function RecognizedTransactionItem({
               <h3 className="font-bold text-base text-gray-900">
                 {transaction.merchantName || "不明"}
               </h3>
+              {/* 取引タイプバッジ */}
+              {inferredType && (
+                <Badge
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                    inferredType === "income"
+                      ? "bg-green-600 text-white"
+                      : inferredType === "transfer"
+                      ? "bg-purple-600 text-white"
+                      : "bg-blue-600 text-white"
+                  }`}
+                >
+                  {inferredType === "income"
+                    ? "収入"
+                    : inferredType === "transfer"
+                    ? "振替"
+                    : "支出"}
+                </Badge>
+              )}
+              {/* 立替/援助バッジ */}
+              {advance && (
+                <Badge className="rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                  {advance.type === "parent" ? "援助" : "立替"}
+                </Badge>
+              )}
               {isDuplicate && (
                 <Badge
                   variant="outline"

@@ -17,6 +17,7 @@ import type {
   RecognizedTransaction,
   OCROptions,
 } from '@/types/image-recognition';
+import { buildPriorHints, rerankRecognition } from '@/lib/ai/personalization';
 
 interface UseImageRecognitionOptions {
   /** 重複チェックを行うか */
@@ -141,6 +142,24 @@ export function useImageRecognition(
               file,
               ocrOptions
             );
+
+            // 2.5 履歴ヒントで軽量リランク（LLMなし）
+            try {
+              const inputText = recognizedTransaction.merchantName || '';
+              if (user && inputText.trim()) {
+                const hints = await buildPriorHints({
+                  userId: user.id,
+                  inputText,
+                });
+                const [reranked] = rerankRecognition([recognizedTransaction], hints);
+                recognizedTransaction.suggestedCategory =
+                  reranked.suggestedCategory || recognizedTransaction.suggestedCategory;
+                recognizedTransaction.confidence =
+                  reranked.confidence ?? recognizedTransaction.confidence;
+              }
+            } catch (e) {
+              console.warn('rerankRecognition skipped:', e);
+            }
 
             // 3. 重複チェック
             let duplicateInfo;

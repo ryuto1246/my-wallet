@@ -86,7 +86,7 @@ export function calculateBalanceChartData(
 }
 
 /**
- * 特定日時点での各決済手段の残高を計算（立替除外）
+ * 特定日時点での各決済手段の残高を計算
  */
 function calculateBalancesAtDate(
   transactions: Transaction[],
@@ -135,15 +135,12 @@ function calculateBalancesAtDate(
             income += t.amount;
           }
         } else {
-          // 通常の取引（立替金回収は含む）
+          // 通常の取引（立替金回収は収入として含む）
           if (t.isIncome) {
             income += t.amount;
           } else {
-            // 支出の場合、立替分は除外
-            const actualAmount = t.advance && t.advance.personalAmount !== undefined
-              ? t.advance.personalAmount
-              : t.amount;
-            expense += actualAmount;
+            // 支出は立替分を含めた実際のキャッシュアウトを計上
+            expense += t.amount;
           }
         }
       });
@@ -173,15 +170,12 @@ function calculateBalancesAtDate(
             income += t.amount;
           }
         } else {
-          // 通常の取引（立替金回収は含む）
+          // 通常の取引（立替金回収は収入として含む）
           if (t.isIncome) {
             income += t.amount;
           } else {
-            // 支出の場合、立替分は除外
-            const actualAmount = t.advance && t.advance.personalAmount !== undefined
-              ? t.advance.personalAmount
-              : t.amount;
-            expense += actualAmount;
+            // 支出は立替分を含めた実際のキャッシュアウトを計上
+            expense += t.amount;
           }
         }
       });
