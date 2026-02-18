@@ -9,6 +9,7 @@ import type { PaymentService } from "@/types/image-recognition";
  */
 export const PAYMENT_SERVICE_NAMES: Record<PaymentService, string> = {
   olive: "三井住友OLIVE",
+  smbc_bank: "三井住友銀行",
   sony: "ソニー銀行",
   dpayment: "d払い",
   dcard: "dカード",
@@ -34,6 +35,7 @@ export const getPaymentServiceName = (service: PaymentService): string => {
 export const getPaymentMethodFromService = (service: string): string => {
   const methodMap: Record<string, string> = {
     olive: "olive",
+    smbc_bank: "smbc_bank",
     sony: "sony_bank",
     dpayment: "d_payment",
     dcard: "d_card",
@@ -56,15 +58,19 @@ export const getPaymentServiceFromMethod = (
 
   // PaymentMethodValueから直接判定
   if (normalizedMethod === "olive") return "olive";
-  if (normalizedMethod === "sony_bank" || normalizedMethod === "smbc_bank")
-    return "sony";
+  if (normalizedMethod === "smbc_bank") return "smbc_bank";
+  if (normalizedMethod === "sony_bank") return "sony";
   if (normalizedMethod === "d_payment") return "dpayment";
   if (normalizedMethod === "d_card") return "dcard";
   if (normalizedMethod === "paypay") return "paypay";
   if (normalizedMethod === "cash") return "cash";
 
   // 表示名や部分一致で判定（後方互換性のため）
-  if (normalizedMethod.includes("olive")) return "olive";
+  // 三井住友銀行と三井住友OLIVEを区別（銀行を先に判定）
+  if (normalizedMethod.includes("三井住友銀行") || normalizedMethod.includes("smbc_bank"))
+    return "smbc_bank";
+  if (normalizedMethod.includes("olive") || normalizedMethod.includes("三井住友カード"))
+    return "olive";
   if (normalizedMethod.includes("ソニー") || normalizedMethod.includes("sony"))
     return "sony";
   if (normalizedMethod.includes("d払い")) return "dpayment";

@@ -103,7 +103,7 @@ function buildRecognitionPrompt(options: OCROptions): string {
 画像から取引情報を抽出し、JSON形式で回答してください。${serviceHint}
 
 **【ステップ1】画像から以下を抽出:**
-1. paymentService: 決済サービスの種類（olive, sony, dpayment, dcard, paypay, cash, unknown のいずれか）
+1. paymentService: 決済サービスの種類（olive, smbc_bank, sony, dpayment, dcard, paypay, cash, unknown のいずれか）
 2. date: 取引日時（ISO 8601形式、例: 2025-10-08T14:30:00+09:00）
 3. amount: 金額（数値のみ、カンマや円記号は不要）
 4. merchantName: 店舗名・サービス名

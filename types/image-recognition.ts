@@ -7,7 +7,8 @@
  * 対応決済サービスの種類
  */
 export type PaymentService =
-  | 'olive' // 三井住友OLIVE
+  | 'olive' // 三井住友OLIVE（クレジットカード）
+  | 'smbc_bank' // 三井住友銀行
   | 'sony' // ソニー銀行
   | 'dpayment' // d払い
   | 'dcard' // dカード

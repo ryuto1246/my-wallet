@@ -251,6 +251,22 @@ export function BatchImageRecognitionDialog({
               }
             : undefined;
 
+        // 取引種別（収入/支出/振替）を isIncome/isTransfer から正しく反映
+        let suggestedCategory: { main: string; sub: string };
+        if (data.isTransfer) {
+          suggestedCategory = { main: "振替", sub: "口座間振替" };
+        } else if (data.isIncome) {
+          suggestedCategory = {
+            main: "収入",
+            sub: data.categoryMain === "収入" ? (data.categorySub || "その他") : "その他",
+          };
+        } else {
+          suggestedCategory = {
+            main: data.categoryMain,
+            sub: data.categorySub,
+          };
+        }
+
         return {
           ...item,
           transaction: {
@@ -259,10 +275,7 @@ export function BatchImageRecognitionDialog({
             date: data.date,
             amount: data.amount,
             merchantName: data.description,
-            suggestedCategory: {
-              main: data.categoryMain,
-              sub: data.categorySub,
-            },
+            suggestedCategory,
             originalMerchantName:
               originalMerchantName || item.transaction.originalMerchantName,
           } as RecognizedTransaction,
@@ -304,6 +317,7 @@ export function BatchImageRecognitionDialog({
 
     const { transaction, advance } = item;
     const isIncome = transaction.suggestedCategory?.main === "収入" || false;
+    const isTransfer = transaction.suggestedCategory?.main === "振替" || false;
 
     return {
       date: transaction.date || new Date(),
@@ -313,6 +327,7 @@ export function BatchImageRecognitionDialog({
       description: transaction.merchantName || "",
       paymentMethod: getPaymentMethodFromService(transaction.paymentService),
       isIncome,
+      isTransfer,
       hasAdvance: !!advance,
       advance: advance
         ? {
@@ -450,6 +465,7 @@ export function BatchImageRecognitionDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="olive">三井住友OLIVE</SelectItem>
+                  <SelectItem value="smbc_bank">三井住友銀行</SelectItem>
                   <SelectItem value="sony">ソニー銀行</SelectItem>
                   <SelectItem value="dpayment">d払い</SelectItem>
                   <SelectItem value="dcard">dカード</SelectItem>
@@ -465,28 +481,21 @@ export function BatchImageRecognitionDialog({
             </div>
           )}
 
-          {/* 画像アップロードエリア */}
+          {/* 画像アップロードエリア（認識中はゾーン内で統一ローディング表示） */}
           {recognitionItems.length === 0 && (
             <ImageUploadZone
               onUpload={handleImageUpload}
               maxFiles={10}
               multiple={true}
               isRecognizing={isRecognizing}
+              recognitionProgress={
+                recognitionProgress &&
+                recognitionProgress.current > 0 &&
+                recognitionProgress.total > 0
+                  ? recognitionProgress
+                  : undefined
+              }
             />
-          )}
-
-          {/* 認識中 */}
-          {isRecognizing && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  {recognitionProgress
-                    ? `画像を認識しています... (${recognitionProgress.current}/${recognitionProgress.total}枚目)`
-                    : "画像から取引を認識しています..."}
-                </p>
-              </div>
-            </div>
           )}
 
           {/* エラー */}

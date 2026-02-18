@@ -33,6 +33,10 @@ export const getGeminiClient = (): GoogleGenerativeAI | null => {
   return genAI;
 };
 
+// 使用するモデル名（環境変数で上書き可能。未設定時は gemini-2.0-flash）
+const GEMINI_MODEL =
+  process.env.NEXT_PUBLIC_GEMINI_MODEL || 'gemini-2.0-flash';
+
 // Gemini Proモデルを取得
 export const getGeminiModel = () => {
   const client = getGeminiClient();
@@ -41,7 +45,11 @@ export const getGeminiModel = () => {
     return null;
   }
   
-  return client.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  // v1 を使用（v1beta ではモデルが見つからない場合があるため）
+  return client.getGenerativeModel(
+    { model: GEMINI_MODEL },
+    { apiVersion: 'v1' }
+  );
 };
 
 // API利用可能かチェック

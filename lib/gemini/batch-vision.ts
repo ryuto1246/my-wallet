@@ -84,7 +84,7 @@ function buildBatchRecognitionPrompt(options: OCROptions): string {
 画像から**すべての取引**を抽出し、JSON配列形式で回答してください。${serviceHint}
 
 **【ステップ1】画像から各取引の以下を抽出:**
-1. paymentService: 決済サービスの種類（olive, sony, dpayment, dcard, paypay, cash, unknown のいずれか）
+1. paymentService: 決済サービスの種類（olive, smbc_bank, sony, dpayment, dcard, paypay, cash, unknown のいずれか）
 2. date: 取引日時（ISO 8601形式、例: 2025-10-08T14:30:00+09:00）
 3. amount: 金額（数値のみ、カンマや円記号は不要）
 4. originalMerchantName: **画像に記載されている元の店舗名**（そのまま抽出、例: 「セブンイレブン渋谷店」「タリーズコーヒー」）

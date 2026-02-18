@@ -6,6 +6,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useTransactions, useBalanceAdjustments, useAuth } from "@/hooks";
+import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 import {
   deleteBalanceAdjustment,
   createBalanceAdjustment,
@@ -21,6 +22,13 @@ import {
   TransferFormDialog,
   BalanceAdjustmentDialog,
 } from "@/components/organisms";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import {
   transformFormDataToTransaction,
@@ -35,6 +43,9 @@ import type {
 
 export default function TransactionsPage() {
   const { user } = useAuth();
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<
+    PaymentMethodValue | ""
+  >("");
   const [formOpen, setFormOpen] = useState(false);
   const [batchImageDialogOpen, setBatchImageDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
@@ -46,6 +57,17 @@ export default function TransactionsPage() {
     null
   );
   const [adjustmentDate, setAdjustmentDate] = useState<Date>(new Date());
+  const { adjustments, refetch: refetchAdjustments } = useBalanceAdjustments();
+
+  // 取引手段フィルター
+  const filter = useMemo(
+    () =>
+      paymentMethodFilter
+        ? { paymentMethod: paymentMethodFilter }
+        : {},
+    [paymentMethodFilter]
+  );
+
   const {
     transactions,
     loading,
@@ -57,8 +79,8 @@ export default function TransactionsPage() {
     createTransaction,
     updateTransaction,
     deleteTransaction,
-  } = useTransactions();
-  const { adjustments, refetch: refetchAdjustments } = useBalanceAdjustments();
+  } = useTransactions(filter);
+
   const {
     setCurrentPage,
     lastDoc,
@@ -578,6 +600,31 @@ export default function TransactionsPage() {
         showTransferButton
         onTransferClick={() => setTransferDialogOpen(true)}
       />
+
+      {/* 取引手段フィルター */}
+      <div className="mb-4 max-w-4xl mx-auto">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          取引手段
+        </label>
+        <Select
+          value={paymentMethodFilter || "all"}
+          onValueChange={(value) =>
+            setPaymentMethodFilter(value === "all" ? "" : (value as PaymentMethodValue))
+          }
+        >
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="取引手段でフィルター" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">すべて</SelectItem>
+            {PAYMENT_METHODS.map((pm) => (
+              <SelectItem key={pm.value} value={pm.value}>
+                {pm.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <TransactionList
         title="最近の取引"

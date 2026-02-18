@@ -30,7 +30,8 @@ export const CATEGORY_LIST_PROMPT = `
  */
 export const PAYMENT_SERVICE_HINT_PROMPT = `
 決済サービスの識別ヒント:
-- 「三井住友」「OLIVE」「SMBC」→ olive
+- 「三井住友OLIVE」「OLIVE」「三井住友カード」「SMBCカード」→ olive（クレジットカード）
+- 「三井住友銀行」「SMBC」「三井住友VISAデビット」→ smbc_bank（銀行口座）
 - 「ソニー銀行」「Sony Bank」→ sony
 - 「d払い」「dポイント」→ dpayment
 - 「dカード」「DCMX」→ dcard

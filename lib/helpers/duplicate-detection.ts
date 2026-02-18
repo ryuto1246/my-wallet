@@ -264,7 +264,8 @@ function calculatePaymentSimilarity(
 ): number {
   // 決済サービスと決済方法のマッピング
   const serviceToMethodMap: Record<string, string[]> = {
-    olive: ['三井住友 OLIVE', 'olive', 'クレジットカード', 'デビットカード'],
+    olive: ['三井住友 OLIVE', 'olive', '三井住友カード', 'クレジットカード', 'デビットカード'],
+    smbc_bank: ['三井住友銀行', 'smbc_bank', 'SMBC', '銀行振込', 'VISAデビット'],
     sony: ['ソニー銀行', 'sony', 'デビットカード', '銀行振込'],
     dpayment: ['d払い', 'dpayment', 'd払い', 'スマホ決済'],
     dcard: ['dカード', 'dcard', 'クレジットカード'],

@@ -294,6 +294,7 @@ export function RecognitionResultCard({
 function getServiceLabel(service: string): string {
   const labels: Record<string, string> = {
     olive: "三井住友OLIVE",
+    smbc_bank: "三井住友銀行",
     sony: "ソニー銀行",
     dpayment: "d払い",
     dcard: "dカード",
