@@ -17,6 +17,7 @@ import {
   PageHeader,
   MonthlyStatsCards,
   BalanceChart,
+  UnidentifiedFundsChart,
   TransactionFormNew,
   BatchImageRecognitionDialog,
   PaymentMethodBalances,
@@ -212,8 +213,9 @@ export default function DashboardPage() {
           description: data.description,
           paymentMethod: data.paymentMethod,
           isIncome: data.isIncome,
-          isTransfer: false,
+          isTransfer: data.isTransfer ?? false,
           hasAdvance: !!data.advance,
+          transfer: data.transfer,
           advance: data.advance
             ? {
                 type: data.advance.type || null,
@@ -354,6 +356,7 @@ export default function DashboardPage() {
             period={chartPeriod}
             onPeriodChange={setChartPeriod}
           />
+          <UnidentifiedFundsChart adjustments={adjustments} />
         </div>
       </div>
 

@@ -93,18 +93,34 @@ export async function recognizeTransactionFromImage(
 }
 
 /**
+ * 今日の日付を JST で YYYY-MM-DD 形式で取得
+ */
+function getTodayDateString(): string {
+  const now = new Date();
+  return now.toLocaleDateString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).replace(/\//g, '-');
+}
+
+/**
  * 認識用のプロンプトを構築
  */
 function buildRecognitionPrompt(options: OCROptions): string {
   const serviceHint = buildServiceHintPrompt(options.serviceHint);
+  const todayStr = getTodayDateString();
 
   return `
+**今日の日付は ${todayStr} です。** 画像から日付が読み取れない場合はこの日付を参考にし、取引日時を推定してください。
+
 この画像は決済アプリ（スマホ決済・銀行アプリなど）のスクリーンショットです。
 画像から取引情報を抽出し、JSON形式で回答してください。${serviceHint}
 
 **【ステップ1】画像から以下を抽出:**
 1. paymentService: 決済サービスの種類（olive, smbc_bank, sony, dpayment, dcard, paypay, cash, unknown のいずれか）
-2. date: 取引日時（ISO 8601形式、例: 2025-10-08T14:30:00+09:00）
+2. date: 取引日時（ISO 8601形式、例: 2025-10-08T14:30:00+09:00。画像から読み取れない場合は今日の日付 ${todayStr} を考慮）
 3. amount: 金額（数値のみ、カンマや円記号は不要）
 4. merchantName: 店舗名・サービス名
 5. confidence: 認識の信頼度（0.0-1.0の範囲）

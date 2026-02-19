@@ -37,7 +37,7 @@ import type {
   RecognizedTransaction,
   PaymentService,
 } from "@/types/image-recognition";
-import type { TransactionInput } from "@/types/transaction";
+import type { TransactionInput, TransferInfo } from "@/types/transaction";
 import type { AdvanceInfo } from "@/types/advance";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 
@@ -54,6 +54,7 @@ interface RecognitionItem {
   duplicateReason?: string;
   matchingTransactions?: Transaction[];
   advance?: Partial<AdvanceInfo>; // 編集時に設定された立替情報
+  transfer?: { from: string; to: string }; // 編集時に設定された振替情報（上書き用）
 }
 
 interface Transaction {
@@ -279,7 +280,8 @@ export function BatchImageRecognitionDialog({
             originalMerchantName:
               originalMerchantName || item.transaction.originalMerchantName,
           } as RecognizedTransaction,
-          advance, // 立替情報を保存
+          advance,
+          transfer: data.isTransfer && data.transfer ? data.transfer : undefined,
         };
       })
     );
@@ -315,9 +317,24 @@ export function BatchImageRecognitionDialog({
     const item = recognitionItems[editingIndex];
     if (!item) return undefined;
 
-    const { transaction, advance } = item;
+    const { transaction, advance, transfer } = item;
     const isIncome = transaction.suggestedCategory?.main === "収入" || false;
     const isTransfer = transaction.suggestedCategory?.main === "振替" || false;
+
+    // 決済手段: 振替の場合は振替元、それ以外はpaymentServiceから。unknownの場合は選択済みサービスをフォールバック
+    const effectivePaymentService =
+      transaction.paymentService === "unknown" &&
+      selectedPaymentService !== "unknown"
+        ? selectedPaymentService
+        : transaction.paymentService;
+
+    // 振替情報: 編集で上書きされたもの > API認識結果
+    const transferInfo = transfer ?? transaction.transfer;
+    // 振替の場合は振替元（paymentMethod）、それ以外はeffectivePaymentServiceから
+    const paymentMethod =
+      isTransfer && transferInfo?.from
+        ? transferInfo.from
+        : getPaymentMethodFromService(effectivePaymentService);
 
     return {
       date: transaction.date || new Date(),
@@ -325,7 +342,7 @@ export function BatchImageRecognitionDialog({
       categoryMain: transaction.suggestedCategory?.main || "",
       categorySub: transaction.suggestedCategory?.sub || "",
       description: transaction.merchantName || "",
-      paymentMethod: getPaymentMethodFromService(transaction.paymentService),
+      paymentMethod,
       isIncome,
       isTransfer,
       hasAdvance: !!advance,
@@ -338,11 +355,10 @@ export function BatchImageRecognitionDialog({
             memo: advance.memo || "",
           }
         : undefined,
-      // 画像から読み取った元の店舗名をメモ欄に表示
+      transfer: transferInfo,
       memo: transaction.originalMerchantName
         ? `元の店舗名: ${transaction.originalMerchantName}`
         : "",
-      // 元の店舗名を保持（キーワード入力欄用）
       originalMerchantName: transaction.originalMerchantName || undefined,
     };
   };
@@ -361,11 +377,40 @@ export function BatchImageRecognitionDialog({
 
     try {
       const transactionsData: TransactionInput[] = selectedItems.map((item) => {
-        const { transaction, advance } = item;
+        const { transaction, advance, transfer } = item;
 
-        // カテゴリーから収入/支出を判定
+        const isTransfer =
+          transaction.suggestedCategory?.main === "振替" || false;
         const isIncome =
           transaction.suggestedCategory?.main === "収入" || false;
+
+        // 決済手段: unknownの場合は選択済みサービスをフォールバック（その他に変わらないように）
+        const effectivePaymentService =
+          transaction.paymentService === "unknown" &&
+          selectedPaymentService !== "unknown"
+            ? selectedPaymentService
+            : transaction.paymentService;
+        const basePaymentMethod =
+          getPaymentMethodFromService(effectivePaymentService);
+
+        // 振替情報: 編集で上書き > API認識結果。振替の場合はpaymentMethod=振替元、transfer必須
+        const transferInfo = transfer ?? transaction.transfer;
+        const hasFromAndTo =
+          transferInfo &&
+          transferInfo.from &&
+          transferInfo.to &&
+          transferInfo.from !== transferInfo.to;
+        // 振替だが情報が不完全な場合: 振替元を補完して振替先を"other"に（後で編集可能）
+        const inferredFrom = (transferInfo?.from || basePaymentMethod) as string;
+        const fallbackTransfer =
+          isTransfer && !hasFromAndTo && inferredFrom !== "other"
+            ? { from: inferredFrom, to: "other" as const }
+            : undefined;
+        const finalTransfer = hasFromAndTo
+          ? transferInfo
+          : fallbackTransfer;
+        const isTransferWithValidData =
+          isTransfer && (hasFromAndTo || !!fallbackTransfer);
 
         return {
           date: transaction.date || new Date(),
@@ -375,11 +420,12 @@ export function BatchImageRecognitionDialog({
             sub: "その他",
           },
           description: transaction.merchantName || "",
-          paymentMethod: getPaymentMethodFromService(
-            transaction.paymentService
-          ),
+          paymentMethod: isTransferWithValidData
+            ? (finalTransfer!.from as string)
+            : basePaymentMethod,
           isIncome,
-          // 立替情報を含める
+          isTransfer: isTransferWithValidData,
+          transfer: finalTransfer as TransferInfo | undefined,
           advance: advance
             ? {
                 type: advance.type || null,

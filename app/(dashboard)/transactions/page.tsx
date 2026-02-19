@@ -300,8 +300,9 @@ export default function TransactionsPage() {
           description: data.description,
           paymentMethod: data.paymentMethod,
           isIncome: data.isIncome,
-          isTransfer: false,
+          isTransfer: data.isTransfer ?? false,
           hasAdvance: !!data.advance,
+          transfer: data.transfer,
           advance: data.advance
             ? {
                 type: data.advance.type || null,
@@ -312,7 +313,8 @@ export default function TransactionsPage() {
               }
             : undefined,
           memo: data.memo || "",
-          // 元の店舗名を保持（画像認識時）
+          imageUrl: data.imageUrl,
+          ai: data.ai,
           originalMerchantName: data.ai?.originalMerchantName,
         };
         const transactionData = transformFormDataToTransaction(formData);

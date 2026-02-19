@@ -51,6 +51,11 @@ export interface RecognizedTransaction {
   confidence: number;
   /** 生データ */
   rawData: RawRecognitionData;
+  /** 振替情報（振替取引の場合、画像から抽出） */
+  transfer?: {
+    from: string;
+    to: string;
+  };
   /** 認識された追加情報 */
   metadata?: {
     /** 取引ID（決済サービス側） */

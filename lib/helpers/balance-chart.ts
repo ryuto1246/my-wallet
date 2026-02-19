@@ -198,3 +198,41 @@ export function getPaymentMethodsForChart() {
   }));
 }
 
+/**
+ * 使途不明金（残高確認による修正の絶対値）月別データ
+ */
+export interface MonthlyUnidentifiedFundsPoint {
+  date: string;
+  dateKey: string;
+  amount: number;
+}
+
+/**
+ * 残高調整から月別の使途不明金（修正額の絶対値の合計）を計算
+ */
+export function calculateMonthlyUnidentifiedFunds(
+  adjustments: BalanceAdjustment[]
+): MonthlyUnidentifiedFundsPoint[] {
+  const now = new Date();
+  const startDate = startOfMonth(subMonths(now, 11));
+  const endDate = endOfMonth(now);
+  const intervals = eachMonthOfInterval({ start: startDate, end: endDate });
+
+  return intervals.map((monthStart) => {
+    const monthEnd = endOfMonth(monthStart);
+    const monthAdjustments = adjustments.filter((adj) => {
+      const d = new Date(adj.date);
+      return d >= monthStart && d <= monthEnd;
+    });
+    const amount = monthAdjustments.reduce(
+      (sum, adj) => sum + Math.abs(adj.difference),
+      0
+    );
+    return {
+      date: format(monthStart, 'yyyy/M', { locale: ja }),
+      dateKey: format(monthStart, 'yyyy-MM-dd'),
+      amount,
+    };
+  });
+}
+

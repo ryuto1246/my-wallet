@@ -92,6 +92,8 @@ export interface TransactionInput {
   description: string;
   paymentMethod: PaymentMethodValue | string;
   isIncome: boolean;
+  isTransfer?: boolean;
+  transfer?: TransferInfo;
   advance?: Partial<AdvanceInfo>;
   imageUrl?: string;
   memo?: string;

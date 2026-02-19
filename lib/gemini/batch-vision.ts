@@ -12,6 +12,7 @@ import {
   DESCRIPTION_TEMPLATE_BASIC_PROMPT,
   buildServiceHintPrompt,
 } from './prompts';
+import { getPaymentMethodFromService } from '@/lib/helpers/payment';
 import type {
   RecognizedTransaction,
   RawRecognitionData,
@@ -74,18 +75,34 @@ export async function recognizeBatchTransactionsFromImage(
 }
 
 /**
+ * 今日の日付を JST で YYYY-MM-DD 形式で取得
+ */
+function getTodayDateString(): string {
+  const now = new Date();
+  return now.toLocaleDateString('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).replace(/\//g, '-');
+}
+
+/**
  * 一括認識用のプロンプトを構築
  */
 function buildBatchRecognitionPrompt(options: OCROptions): string {
   const serviceHint = buildServiceHintPrompt(options.serviceHint);
+  const todayStr = getTodayDateString();
 
   return `
+**今日の日付は ${todayStr} です。** 画像から日付が読み取れない場合はこの日付を参考にし、取引日時を推定してください。
+
 この画像は決済アプリの取引リスト（複数の取引が表示されている画面）のスクリーンショットです。
 画像から**すべての取引**を抽出し、JSON配列形式で回答してください。${serviceHint}
 
 **【ステップ1】画像から各取引の以下を抽出:**
 1. paymentService: 決済サービスの種類（olive, smbc_bank, sony, dpayment, dcard, paypay, cash, unknown のいずれか）
-2. date: 取引日時（ISO 8601形式、例: 2025-10-08T14:30:00+09:00）
+2. date: 取引日時（ISO 8601形式、例: 2025-10-08T14:30:00+09:00。画像から読み取れない場合は今日の日付 ${todayStr} を考慮）
 3. amount: 金額（数値のみ、カンマや円記号は不要）
 4. originalMerchantName: **画像に記載されている元の店舗名**（そのまま抽出、例: 「セブンイレブン渋谷店」「タリーズコーヒー」）
 5. confidence: 認識の信頼度（0.0-1.0の範囲）
@@ -93,7 +110,16 @@ function buildBatchRecognitionPrompt(options: OCROptions): string {
 **【ステップ2】店舗名から用途を推測し、項目名を生成:**
 ${STORE_TO_PURPOSE_MAPPING}
 
-**【ステップ3】カテゴリーを選択:**
+**【ステップ3】振替の判定と振替情報の抽出:**
+- 以下のような取引は**振替**として判定し、suggestedCategory: { "main": "振替", "sub": "口座間振替" } を設定
+  - 「引き出し」「振替」「口座間移動」「〇〇カード支払い」「〇〇への振替」「dカード→d払い」等
+  - 銀行アプリの入出金で、別口座への移動を示す取引
+- 振替の場合、transfer を必ず設定:
+  - from: この取引リストが表示されている口座（振替元）= paymentService の値
+  - to: originalMerchantNameや説明から振替先を推測。対応: olive, smbc_bank, sony, dpayment, dcard, paypay, cash
+  - 例: 「三井住友カード支払い」→ to: "olive", 「引き出し」→ to: "cash", 「d払い」→ to: "dpayment", 「三井住友銀行」→ to: "smbc_bank"
+
+**【ステップ4】カテゴリーを選択（振替でない場合）:**
 ${CATEGORY_LIST_PROMPT}
 
 ${PAYMENT_SERVICE_HINT_PROMPT}
@@ -137,6 +163,22 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
       "main": "趣味",
       "sub": "その他"
     }
+  },
+  {
+    "paymentService": "sony",
+    "date": "2025-10-05T10:00:00+09:00",
+    "amount": 50000,
+    "merchantName": "口座間振替",
+    "originalMerchantName": "引き出し",
+    "confidence": 0.90,
+    "suggestedCategory": {
+      "main": "振替",
+      "sub": "口座間振替"
+    },
+    "transfer": {
+      "from": "sony",
+      "to": "cash"
+    }
   }
 ]
 
@@ -149,6 +191,7 @@ ${DESCRIPTION_TEMPLATE_BASIC_PROMPT}
 - confidenceは認識の確実性を0.0-1.0で評価（画像が鮮明なら0.85以上、店舗名が明確なら0.8以上）
 - 日付のフォーマットは必ずISO 8601形式にしてください
 - カテゴリーは必ず上記リストから完全一致で選択してください
+- 振替の場合は必ず transfer.from（振替元）と transfer.to（振替先）を設定してください
 - 取引が1件もない場合は空配列 [] を返してください
 `;
 }
@@ -194,6 +237,12 @@ function parseBatchRecognitionResponse(responseText: string): RecognizedTransact
         confidence: item.confidence || 0.5,
         rawData,
         metadata: item.metadata,
+        transfer: item.transfer
+          ? {
+              from: getPaymentMethodFromService(item.transfer.from),
+              to: getPaymentMethodFromService(item.transfer.to),
+            }
+          : undefined,
       };
     });
 
