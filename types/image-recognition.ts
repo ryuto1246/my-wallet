@@ -13,6 +13,7 @@ export type PaymentService =
   | 'dpayment' // d払い
   | 'dcard' // dカード
   | 'paypay' // PayPay
+  | 'v_point_pay' // V-Point Pay
   | 'cash' // 現金（手入力）
   | 'unknown'; // 不明
 

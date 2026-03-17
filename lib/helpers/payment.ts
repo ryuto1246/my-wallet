@@ -14,6 +14,7 @@ export const PAYMENT_SERVICE_NAMES: Record<PaymentService, string> = {
   dpayment: "d払い",
   dcard: "dカード",
   paypay: "PayPay",
+  v_point_pay: "V-Point Pay",
   cash: "現金",
   unknown: "不明",
 };
@@ -40,6 +41,7 @@ export const getPaymentMethodFromService = (service: string): string => {
     dpayment: "d_payment",
     dcard: "d_card",
     paypay: "paypay",
+    v_point_pay: "v_point_pay",
     cash: "cash",
     unknown: "other",
   };
@@ -63,6 +65,7 @@ export const getPaymentServiceFromMethod = (
   if (normalizedMethod === "d_payment") return "dpayment";
   if (normalizedMethod === "d_card") return "dcard";
   if (normalizedMethod === "paypay") return "paypay";
+  if (normalizedMethod === "v_point_pay") return "v_point_pay";
   if (normalizedMethod === "cash") return "cash";
 
   // 表示名や部分一致で判定（後方互換性のため）
@@ -76,6 +79,7 @@ export const getPaymentServiceFromMethod = (
   if (normalizedMethod.includes("d払い")) return "dpayment";
   if (normalizedMethod.includes("dカード")) return "dcard";
   if (normalizedMethod.includes("paypay")) return "paypay";
+  if (normalizedMethod.includes("v-pointpay") || normalizedMethod.includes("vpointpay") || normalizedMethod.includes("v_point_pay")) return "v_point_pay";
   if (normalizedMethod.includes("現金")) return "cash";
 
   return "unknown";
@@ -89,7 +93,7 @@ export const getPaymentServiceFromMethod = (
  */
 export const normalizePaymentMethod = (paymentMethod: string): string => {
   // 既にPaymentMethodValueの場合はそのまま返す
-  const validValues = ["olive", "smbc_bank", "sony_bank", "d_payment", "d_card", "paypay", "cash", "other"];
+  const validValues = ["olive", "smbc_bank", "sony_bank", "d_payment", "d_card", "paypay", "v_point_pay", "cash", "other"];
   if (validValues.includes(paymentMethod)) {
     return paymentMethod;
   }
@@ -104,6 +108,7 @@ export const normalizePaymentMethod = (paymentMethod: string): string => {
   if (normalizedMethod.includes("d払い")) return "d_payment";
   if (normalizedMethod.includes("dカード")) return "d_card";
   if (normalizedMethod.includes("paypay")) return "paypay";
+  if (normalizedMethod.includes("v-pointpay") || normalizedMethod.includes("vpointpay") || normalizedMethod.includes("v_point_pay") || normalizedMethod.includes("v-point")) return "v_point_pay";
   if (normalizedMethod.includes("現金") || normalizedMethod.includes("cash")) return "cash";
 
   return "other";
