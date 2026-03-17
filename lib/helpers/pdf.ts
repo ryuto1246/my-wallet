@@ -24,9 +24,6 @@ export function generateParentAdvanceLineText(
 
   const lines: string[] = [];
 
-  lines.push(`【${year}年${monthLabel} 親立替請求書】`);
-  lines.push('');
-
   transactions.forEach((tx) => {
     const date = `${month + 1}/${tx.date.getDate()}`;
     const amount = `¥${tx.advanceAmount.toLocaleString('ja-JP')}`;
