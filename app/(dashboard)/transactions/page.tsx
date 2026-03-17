@@ -217,10 +217,19 @@ export default function TransactionsPage() {
     return { startDate: minDate, endDate: maxDate };
   }, [transactions]);
 
+  // フィルターが有効な場合、残高調整も同じ支払い手段で絞り込む
+  const adjustmentsForDisplay = useMemo(
+    () =>
+      paymentMethodFilter
+        ? adjustments.filter((a) => a.paymentMethod === paymentMethodFilter)
+        : adjustments,
+    [adjustments, paymentMethodFilter]
+  );
+
   // 取引と残高調整を統合（現在ページの日付範囲に該当する調整のみ）
   const allTransactions = useMemo(
-    () => mergeTransactionsAndAdjustments(transactions, adjustments, dateRange),
-    [transactions, adjustments, dateRange]
+    () => mergeTransactionsAndAdjustments(transactions, adjustmentsForDisplay, dateRange),
+    [transactions, adjustmentsForDisplay, dateRange]
   );
 
   const handleSubmit = async (data: TransactionFormValues) => {
