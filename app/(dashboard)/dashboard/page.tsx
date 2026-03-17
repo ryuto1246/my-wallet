@@ -28,6 +28,8 @@ import { TransactionFormValues } from "@/lib/validations/transaction";
 import {
   calculatePeriodStats,
   transformFormDataToTransaction,
+  convertTransactionInputToFormValues,
+  buildTransferFormValues,
   getCurrentMonthRange,
   getLastThirtyDaysRange,
   getCurrentYearRange,
@@ -191,37 +193,12 @@ export default function DashboardPage() {
   // 一括登録
   const handleBatchSubmit = async (transactionsData: TransactionInput[]) => {
     try {
-      // 各トランザクションを順次登録
       for (const data of transactionsData) {
-        // TransactionInputをTransactionFormDataに変換
-        const formData: TransactionFormValues = {
-          date: data.date,
-          amount: data.amount,
-          categoryMain: data.category.main,
-          categorySub: data.category.sub,
-          description: data.description,
-          paymentMethod: data.paymentMethod,
-          isIncome: data.isIncome,
-          isTransfer: data.isTransfer ?? false,
-          hasAdvance: !!data.advance,
-          transfer: data.transfer,
-          advance: data.advance
-            ? {
-                type: data.advance.type || null,
-                totalAmount: data.advance.totalAmount || data.amount,
-                advanceAmount: data.advance.advanceAmount || 0,
-                personalAmount: data.advance.personalAmount || data.amount,
-                memo: data.advance.memo || "",
-              }
-            : undefined,
-          memo: data.memo || "",
-          imageUrl: data.imageUrl, // 画像URLを保持
-          ai: data.ai, // AI情報を保持
-        };
-        const transactionData = transformFormDataToTransaction(formData);
+        const transactionData = transformFormDataToTransaction(
+          convertTransactionInputToFormValues(data)
+        );
         await createTransaction(transactionData);
       }
-
       // 一括登録完了後、トランザクションリストを再取得してグラフに反映
       await refetchAllTransactions();
     } catch (error) {
@@ -279,23 +256,9 @@ export default function DashboardPage() {
     memo?: string;
   }) => {
     try {
-      const formData: TransactionFormValues = {
-        date: data.date,
-        amount: data.amount,
-        categoryMain: "振替",
-        categorySub: "口座間振替",
-        description: data.description,
-        paymentMethod: data.from, // 振替元を支払い方法とする
-        isIncome: false,
-        isTransfer: true,
-        hasAdvance: false,
-        transfer: {
-          from: data.from as PaymentMethodValue,
-          to: data.to as PaymentMethodValue,
-        },
-        memo: data.memo || "",
-      };
-      const transactionData = transformFormDataToTransaction(formData);
+      const transactionData = transformFormDataToTransaction(
+        buildTransferFormValues(data)
+      );
       await createTransaction(transactionData);
     } catch (error) {
       console.error("振替登録エラー:", error);

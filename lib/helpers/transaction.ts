@@ -2,7 +2,7 @@
  * トランザクション関連のヘルパー関数
  */
 
-import { Transaction, PaymentMethodValue } from "@/types/transaction";
+import { Transaction, TransactionInput, PaymentMethodValue } from "@/types/transaction";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import type { BalanceAdjustment } from "@/types";
 
@@ -168,6 +168,69 @@ export function filterTransactionsByType(
   isIncome: boolean
 ): Transaction[] {
   return transactions.filter((t) => t.isIncome === isIncome);
+}
+
+/**
+ * TransactionInput を TransactionFormValues に変換
+ * 一括登録など、複数ページで同じ変換が必要な場合に使用する
+ */
+export function convertTransactionInputToFormValues(
+  input: TransactionInput
+): TransactionFormValues {
+  return {
+    date: input.date,
+    amount: input.amount,
+    categoryMain: input.category.main,
+    categorySub: input.category.sub,
+    description: input.description,
+    paymentMethod: input.paymentMethod,
+    isIncome: input.isIncome,
+    isTransfer: input.isTransfer ?? false,
+    hasAdvance: !!input.advance,
+    transfer: input.transfer,
+    advance: input.advance
+      ? {
+          type: input.advance.type || null,
+          totalAmount: input.advance.totalAmount || input.amount,
+          advanceAmount: input.advance.advanceAmount || 0,
+          personalAmount: input.advance.personalAmount || input.amount,
+          memo: input.advance.memo || "",
+        }
+      : undefined,
+    memo: input.memo || "",
+    imageUrl: input.imageUrl,
+    ai: input.ai,
+    originalMerchantName: input.ai?.originalMerchantName,
+  };
+}
+
+/**
+ * 振替フォームの入力値を TransactionFormValues に変換
+ */
+export function buildTransferFormValues(data: {
+  date: Date;
+  amount: number;
+  from: string;
+  to: string;
+  description: string;
+  memo?: string;
+}): TransactionFormValues {
+  return {
+    date: data.date,
+    amount: data.amount,
+    categoryMain: "振替",
+    categorySub: "口座間振替",
+    description: data.description,
+    paymentMethod: data.from as PaymentMethodValue,
+    isIncome: false,
+    isTransfer: true,
+    hasAdvance: false,
+    transfer: {
+      from: data.from as PaymentMethodValue,
+      to: data.to as PaymentMethodValue,
+    },
+    memo: data.memo || "",
+  };
 }
 
 /**
