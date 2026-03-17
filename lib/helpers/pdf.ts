@@ -26,11 +26,6 @@ export function generateParentAdvanceLineText(
 
   lines.push(`【${year}年${monthLabel} 親立替請求書】`);
   lines.push('');
-  lines.push('いつもお世話になっております。');
-  lines.push('今月分の親立替費用のご請求です。');
-  lines.push('ご確認のほど、よろしくお願いいたします。');
-  lines.push('');
-  lines.push('─────────────────');
 
   transactions.forEach((tx) => {
     const date = `${month + 1}/${tx.date.getDate()}`;
@@ -39,12 +34,8 @@ export function generateParentAdvanceLineText(
     lines.push(`${date}　${tx.description}　${amount}${memo}`);
   });
 
-  lines.push('─────────────────');
-  lines.push(`合計：¥${totalAmount.toLocaleString('ja-JP')}`);
   lines.push('');
-  lines.push('いつもご支援いただき、誠にありがとうございます。');
-  lines.push('今後とも変わらぬご理解とご協力をいただけますよう、');
-  lines.push('お願い申し上げます。');
+  lines.push(`合計：¥${totalAmount.toLocaleString('ja-JP')}`);
 
   return lines.join('\n');
 }
