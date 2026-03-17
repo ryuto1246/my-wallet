@@ -2,7 +2,7 @@
  * トランザクション関連のヘルパー関数
  */
 
-import { Transaction } from "@/types/transaction";
+import { Transaction, PaymentMethodValue } from "@/types/transaction";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import type { BalanceAdjustment } from "@/types";
 
@@ -78,7 +78,6 @@ export function convertAdjustmentToTransaction(
   adjustment: BalanceAdjustment
 ): Transaction {
   const isIncome = adjustment.difference > 0;
-  console.log('🔄 Converting adjustment to transaction:', adjustment);
   return {
     id: `adjustment-${adjustment.id}`,
     userId: adjustment.userId,
@@ -182,12 +181,12 @@ export function transformFormDataToTransaction(
     amount: number;
     category: { main: string; sub: string };
     description: string;
-    paymentMethod: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
+    paymentMethod: PaymentMethodValue;
     isIncome: boolean;
     transactionType?: "expense" | "income" | "transfer";
     transfer?: {
-      from: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
-      to: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
+      from: PaymentMethodValue;
+      to: PaymentMethodValue;
     };
     memo?: string;
     imageUrl?: string;
@@ -210,14 +209,7 @@ export function transformFormDataToTransaction(
       sub: data.categorySub,
     },
     description: data.description,
-    paymentMethod: data.paymentMethod as
-      | "olive"
-      | "sony_bank"
-      | "d_payment"
-      | "d_card"
-      | "paypay"
-      | "cash"
-      | "other",
+    paymentMethod: data.paymentMethod as PaymentMethodValue,
     isIncome: data.isIncome,
   };
 
@@ -225,22 +217,8 @@ export function transformFormDataToTransaction(
   if (data.isTransfer && data.transfer) {
     baseTransaction.transactionType = 'transfer';
     baseTransaction.transfer = {
-      from: data.transfer.from as
-        | "olive"
-        | "sony_bank"
-        | "d_payment"
-        | "d_card"
-        | "paypay"
-        | "cash"
-        | "other",
-      to: data.transfer.to as
-        | "olive"
-        | "sony_bank"
-        | "d_payment"
-        | "d_card"
-        | "paypay"
-        | "cash"
-        | "other",
+      from: data.transfer.from as PaymentMethodValue,
+      to: data.transfer.to as PaymentMethodValue,
     };
   } else {
     baseTransaction.transactionType = data.isIncome ? 'income' : 'expense';
@@ -457,12 +435,6 @@ export function calculatePaymentMethodBalances(
   adjustments?: BalanceAdjustment[],
   asOfDate?: Date
 ): PaymentMethodBalance[] {
-  console.log('💰 calculatePaymentMethodBalances called:', {
-    transactionsCount: transactions.length,
-    adjustmentsCount: adjustments?.length || 0,
-    asOfDate: asOfDate?.toISOString(),
-  });
-
   // 指定日がある場合、その日以前のトランザクションと調整のみを使用
   const filteredTransactions = asOfDate
     ? transactions.filter((t) => new Date(t.date) <= asOfDate)
@@ -486,7 +458,6 @@ export function calculatePaymentMethodBalances(
         latestAdjustmentMap.set(adj.paymentMethod, adj);
       }
     });
-    console.log('📊 Latest adjustments map:', Array.from(latestAdjustmentMap.entries()));
   }
 
   // 各決済手段の残高を計算（振替も考慮してマップを初期化）

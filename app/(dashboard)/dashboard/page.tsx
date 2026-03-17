@@ -50,7 +50,7 @@ export default function DashboardPage() {
     refetch: refetchAllTransactions,
   } = useDashboardTransactions();
   const { balance } = useAdvance();
-  const { adjustments } = useBalanceAdjustments();
+  const { adjustments, refetch: refetchAdjustments } = useBalanceAdjustments();
   const [formOpen, setFormOpen] = useState(false);
   const [batchImageDialogOpen, setBatchImageDialogOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] =
@@ -166,18 +166,7 @@ export default function DashboardPage() {
         ? balanceAsOfDate
         : new Date();
 
-    console.log("💰 Calculating payment method balances:", {
-      transactionsCount: allTransactions.length,
-      adjustmentsCount: adjustments.length,
-      asOfDate: validDate.toISOString(),
-    });
-    const balances = calculatePaymentMethodBalances(
-      allTransactions,
-      adjustments,
-      validDate
-    );
-    console.log("✅ Payment method balances:", balances);
-    return balances;
+    return calculatePaymentMethodBalances(allTransactions, adjustments, validDate);
   }, [allTransactions, adjustments, balanceAsOfDate]);
 
   // 選択された決済手段の期待残高を取得
@@ -260,8 +249,7 @@ export default function DashboardPage() {
         },
         selectedPaymentMethodBalance
       );
-      // ページをリロードして最新データを取得
-      window.location.reload();
+      await Promise.all([refetchAllTransactions(), refetchAdjustments()]);
     } catch (error) {
       console.error("残高確認/修正エラー:", error);
       throw error;

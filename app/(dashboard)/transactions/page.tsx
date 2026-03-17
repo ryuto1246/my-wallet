@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useTransactions, useBalanceAdjustments, useAuth } from "@/hooks";
 import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 import {
@@ -38,7 +38,6 @@ import {
 import type {
   TransactionInput,
   PaymentMethodValue,
-  Transaction,
 } from "@/types/transaction";
 
 export default function TransactionsPage() {
@@ -99,7 +98,7 @@ export default function TransactionsPage() {
   const savedLastDocRef = useRef<typeof lastDoc>(null);
   const savedPageHistoryRef = useRef<typeof pageHistory>([null]);
   const isDialogOpenRef = useRef<boolean>(false);
-  const shouldRestorePageRef = useRef<boolean>(false);
+  const [shouldRestorePage, setShouldRestorePage] = useState(false);
 
   // ダイアログの開閉時にスクロール位置とページネーション状態を保存・復元
   useEffect(() => {
@@ -115,12 +114,11 @@ export default function TransactionsPage() {
       savedPageRef.current = currentPage;
       savedLastDocRef.current = lastDoc;
       savedPageHistoryRef.current = [...pageHistory];
-      shouldRestorePageRef.current = false;
     }
 
     // ダイアログが閉じた時（true → false）に復元フラグを設定
     if (!isAnyDialogOpen && isDialogOpenRef.current) {
-      shouldRestorePageRef.current = true;
+      setShouldRestorePage(true);
     }
 
     isDialogOpenRef.current = isAnyDialogOpen;
@@ -135,8 +133,19 @@ export default function TransactionsPage() {
   ]);
 
   // ページとスクロール位置を復元
+  const restoreScrollPosition = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (scrollPositionRef.current > 0) {
+          window.scrollTo({ top: scrollPositionRef.current, behavior: "auto" });
+        }
+        setShouldRestorePage(false);
+      });
+    });
+  }, []);
+
   useEffect(() => {
-    if (!shouldRestorePageRef.current || loading || !user) return;
+    if (!shouldRestorePage || loading || !user) return;
 
     const savedPage = savedPageRef.current;
     const savedLastDoc = savedLastDocRef.current;
@@ -147,41 +156,26 @@ export default function TransactionsPage() {
       const restorePage = async () => {
         setLoading(true);
         try {
-          // 保存したページの開始位置を取得
-          // savedPage > 1の場合、pageHistory[savedPage - 2]が開始位置
+          // savedPage > 1 の場合、pageHistory[savedPage - 2] が開始位置
           const startDoc =
             savedPage > 1
               ? savedPageHistory[savedPage - 2] || undefined
               : undefined;
 
-          // 保存したページのデータを取得
           const {
             transactions: restoredTransactions,
             lastDoc: restoredLastDoc,
           } = await getTransactions(user.id, currentFilter, 20, startDoc);
 
-          // ページ状態とデータを復元
           setTransactions(restoredTransactions);
           setLastDoc(restoredLastDoc);
           setPageHistory(savedPageHistory);
           setCurrentPage(savedPage);
           setHasMore(restoredTransactions.length === 20);
-
-          // スクロール位置を復元
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              if (scrollPositionRef.current > 0) {
-                window.scrollTo({
-                  top: scrollPositionRef.current,
-                  behavior: "auto",
-                });
-              }
-              shouldRestorePageRef.current = false;
-            });
-          });
+          restoreScrollPosition();
         } catch (error) {
           console.error("ページ復元エラー:", error);
-          shouldRestorePageRef.current = false;
+          setShouldRestorePage(false);
         } finally {
           setLoading(false);
         }
@@ -189,20 +183,10 @@ export default function TransactionsPage() {
 
       restorePage();
     } else {
-      // ページが変わっていない場合、スクロール位置のみ復元
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (scrollPositionRef.current > 0) {
-            window.scrollTo({
-              top: scrollPositionRef.current,
-              behavior: "auto",
-            });
-          }
-          shouldRestorePageRef.current = false;
-        });
-      });
+      restoreScrollPosition();
     }
   }, [
+    shouldRestorePage,
     loading,
     currentPage,
     user,
@@ -213,18 +197,8 @@ export default function TransactionsPage() {
     setTransactions,
     setLoading,
     setHasMore,
+    restoreScrollPosition,
   ]);
-
-  // 取引と残高調整を統合
-  // 前回のキーと結果を保存して、内容が変わったときだけ再計算する
-  const prevTransactionsKeyRef = useRef<string>("");
-  const prevAdjustmentsKeyRef = useRef<string>("");
-  const prevResultRef = useRef<Transaction[]>([]);
-
-  const transactionsKey = transactions.map((t) => t.id).join(",");
-  const adjustmentsKey = adjustments
-    .map((a) => `${a.id}:${a.updatedAt?.getTime() || a.createdAt.getTime()}`)
-    .join(",");
 
   // 現在のページの取引の日付範囲を計算
   const dateRange = useMemo(() => {
@@ -241,47 +215,23 @@ export default function TransactionsPage() {
     return { startDate: minDate, endDate: maxDate };
   }, [transactions]);
 
-  const allTransactions = useMemo(() => {
-    // 内容が変わっていない場合は前回の結果を返す
-    if (
-      prevTransactionsKeyRef.current === transactionsKey &&
-      prevAdjustmentsKeyRef.current === adjustmentsKey
-    ) {
-      return prevResultRef.current;
-    }
-
-    // 内容が変わった場合のみ再計算
-    // 現在のページの取引の日付範囲に該当する残高調整のみを統合
-    const result = mergeTransactionsAndAdjustments(
-      transactions,
-      adjustments,
-      dateRange
-    );
-    prevTransactionsKeyRef.current = transactionsKey;
-    prevAdjustmentsKeyRef.current = adjustmentsKey;
-    prevResultRef.current = result;
-    return result;
-  }, [transactions, adjustments, transactionsKey, adjustmentsKey, dateRange]);
+  // 取引と残高調整を統合（現在ページの日付範囲に該当する調整のみ）
+  const allTransactions = useMemo(
+    () => mergeTransactionsAndAdjustments(transactions, adjustments, dateRange),
+    [transactions, adjustments, dateRange]
+  );
 
   const handleSubmit = async (data: TransactionFormValues) => {
-    console.log("🟡 TransactionsPage handleSubmit 開始:", data);
     try {
       const transactionData = transformFormDataToTransaction(data);
-      console.log("📦 変換後の取引データ:", transactionData);
       if (editingTransactionId) {
-        // 編集モード
-        console.log("✏️ 編集モード: ID =", editingTransactionId);
         await updateTransaction(editingTransactionId, transactionData);
-        console.log("✅ 更新完了");
         setEditingTransactionId(null);
       } else {
-        // 新規作成モード
-        console.log("➕ 新規作成モード");
         await createTransaction(transactionData);
-        console.log("✅ 作成完了");
       }
     } catch (error) {
-      console.error("❌ トランザクション作成/更新エラー:", error);
+      console.error("トランザクション作成/更新エラー:", error);
       throw error;
     }
   };
