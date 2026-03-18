@@ -17,9 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/firebase/auth";
 import Link from "next/link";
-import { Menu, LayoutDashboard, List, LogOut, FileText, CreditCard, BarChart2, Bot } from "lucide-react";
-import { useState } from "react";
-import { ParentAdvanceInvoiceDialog } from "@/components/organisms";
+import { Menu, LayoutDashboard, List, LogOut, CreditCard, BarChart2, Bot } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -28,8 +26,6 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { loading, isAuthenticated, user } = useAuth();
-  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push("/login");
@@ -93,12 +89,6 @@ export default function DashboardLayout({
               <Link href="/chat" className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-sm text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass">
                 AI分析
               </Link>
-              <button
-                onClick={() => setInvoiceDialogOpen(true)}
-                className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-sm text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass"
-              >
-                親立替請求書
-              </button>
             </nav>
           </div>
 
@@ -165,13 +155,6 @@ export default function DashboardLayout({
                     <span>AI分析チャット</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setInvoiceDialogOpen(true)}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <FileText className="h-4 w-4" />
-                  <span>親立替請求書</span>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleSignOut}
@@ -191,14 +174,6 @@ export default function DashboardLayout({
         {children}
       </main>
 
-      {/* 請求書ダイアログ */}
-      {user?.id && (
-        <ParentAdvanceInvoiceDialog
-          open={invoiceDialogOpen}
-          onOpenChange={setInvoiceDialogOpen}
-          userId={user.id}
-        />
-      )}
     </div>
   );
 }

@@ -27,8 +27,6 @@ import {
   generateParentAdvanceLineText,
 } from "@/lib/helpers";
 import { getAllTransactions } from "@/lib/firebase/transactions";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
 
 interface ParentAdvanceInvoiceDialogProps {
   open: boolean;
@@ -103,8 +101,6 @@ export function ParentAdvanceInvoiceDialog({
     [transactions, selectedYear, selectedMonth]
   );
 
-  const totalAmount = transactions.reduce((sum, tx) => sum + tx.advanceAmount, 0);
-
   const handleCopyToLine = async () => {
     if (!lineText) return;
     try {
@@ -123,9 +119,6 @@ export function ParentAdvanceInvoiceDialog({
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
             親立替請求書
           </DialogTitle>
-          <DialogDescription className="text-base">
-            LINEに貼り付ける請求テキストを生成します
-          </DialogDescription>
         </DialogHeader>
 
         {/* 年月選択 */}
@@ -179,61 +172,9 @@ export function ParentAdvanceInvoiceDialog({
               {selectedYear}年{selectedMonth + 1}月の親立替取引がありません。
             </div>
           ) : (
-            <>
-              {/* 明細テーブル */}
-              <div className="rounded-xl border-2 border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-3">
-                  <h3 className="text-lg font-bold">
-                    {selectedYear}年{monthName} 親立替請求書
-                  </h3>
-                </div>
-                <table className="w-full">
-                  <thead className="bg-gradient-to-r from-orange-400 to-red-400 text-white">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">No.</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">日付</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">内容</th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold">金額</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">備考</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {transactions.map((tx, index) => (
-                      <tr key={index} className="hover:bg-orange-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-gray-700 text-center">{index + 1}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          {format(tx.date, "M/d", { locale: ja })}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{tx.description}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 font-semibold text-right">
-                          ¥{tx.advanceAmount.toLocaleString("ja-JP")}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{tx.memo || "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gradient-to-r from-orange-100 to-red-100">
-                    <tr>
-                      <td colSpan={3} className="px-4 py-4 text-right text-sm font-bold text-gray-900">
-                        合計金額
-                      </td>
-                      <td className="px-4 py-4 text-right text-lg font-bold text-orange-700">
-                        ¥{totalAmount.toLocaleString("ja-JP")}
-                      </td>
-                      <td className="px-4 py-4"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {/* LINEテキストプレビュー */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">LINEに貼り付けるテキスト</p>
-                <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap break-words font-sans leading-relaxed">
-                  {lineText}
-                </pre>
-              </div>
-            </>
+            <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap break-words font-sans leading-relaxed">
+              {lineText}
+            </pre>
           )}
         </div>
 

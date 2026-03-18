@@ -9,14 +9,16 @@ export interface RecurringExpense {
   averageAmount: number;       // 平均金額
   frequency: number;           // 月あたりの発生回数
   months: string[];            // YYYY-MM 形式の発生月
-  isFixed: boolean;            // 固定費かどうか（金額のゆれが小さい）
+  isFixed: boolean;            // 固定費かどうか
   variance: number;            // 金額の分散率（0=完全固定）
+  aiReason?: string;           // AI判定理由
 }
 
 /**
- * 取引リストから固定費・定期支出を検出
+ * 取引リストから定期支出候補を集計（isFixed はアルゴリズムで仮設定）
+ * AI分析の前処理として使用
  */
-export function detectRecurringExpenses(
+export function aggregateRecurringCandidates(
   transactions: Array<{
     date: Date;
     description: string;
@@ -24,13 +26,13 @@ export function detectRecurringExpenses(
     isIncome: boolean;
     category: { main: string; sub: string };
   }>,
-  minMonths = 2  // 何ヶ月以上出現したら固定費とみなすか
+  minMonths = 2
 ): RecurringExpense[] {
-  // 支出のみを対象
-  const expenses = transactions.filter(t => !t.isIncome && t.amount > 0);
+  // 支出のみを対象（振替・口座間振替は除外）
+  const expenses = transactions.filter(t => !t.isIncome && t.amount > 0 && t.category.main !== '振替');
 
-  // 説明文で集約
-  type GroupEntry = { amounts: number[]; months: Set<string>; category: { main: string; sub: string } };
+  // 月ごとの合計金額を集計
+  type GroupEntry = { monthlyTotals: Map<string, number>; category: { main: string; sub: string } };
   const grouped = new Map<string, GroupEntry>();
 
   expenses.forEach(t => {
@@ -39,20 +41,21 @@ export function detectRecurringExpenses(
     const key = t.description.trim();
 
     if (!grouped.has(key)) {
-      grouped.set(key, { amounts: [], months: new Set(), category: t.category });
+      grouped.set(key, { monthlyTotals: new Map(), category: t.category });
     }
     const entry = grouped.get(key)!;
-    entry.amounts.push(t.amount);
-    entry.months.add(monthKey);
+    entry.monthlyTotals.set(monthKey, (entry.monthlyTotals.get(monthKey) ?? 0) + t.amount);
     if (!entry.category.main) entry.category = t.category;
   });
 
   const results: RecurringExpense[] = [];
 
   grouped.forEach((entry, description) => {
-    if (entry.months.size < minMonths) return;
+    if (entry.monthlyTotals.size < minMonths) return;
 
-    const amounts = entry.amounts;
+    // amounts = 各月の合計金額（月平均の計算に使う）
+    const months = Array.from(entry.monthlyTotals.keys()).sort();
+    const amounts = months.map(m => entry.monthlyTotals.get(m)!);
     const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
     const variance = avg > 0
       ? Math.sqrt(amounts.reduce((sum, a) => sum + Math.pow(a - avg, 2), 0) / amounts.length) / avg
@@ -63,14 +66,13 @@ export function detectRecurringExpenses(
       category: entry.category,
       amounts,
       averageAmount: Math.round(avg),
-      frequency: amounts.length / entry.months.size,
-      months: Array.from(entry.months).sort(),
-      isFixed: variance < 0.05,  // 5%以内のゆれは固定費
+      frequency: amounts.length / months.length,
+      months,
+      isFixed: variance < 0.05,
       variance,
     });
   });
 
-  // 平均金額が高い順にソート
   return results.sort((a, b) => b.averageAmount - a.averageAmount);
 }
 
@@ -82,3 +84,6 @@ export function calcMonthlyFixedTotal(expenses: RecurringExpense[]): number {
     .filter(e => e.isFixed)
     .reduce((sum, e) => sum + e.averageAmount, 0);
 }
+
+// 後方互換エイリアス
+export const detectRecurringExpenses = aggregateRecurringCandidates;

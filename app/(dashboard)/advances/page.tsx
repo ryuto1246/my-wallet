@@ -7,7 +7,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { useDashboardTransactions } from "@/hooks";
 import { DashboardTemplate } from "@/components/templates";
-import { PageHeader } from "@/components/organisms";
+import { PageHeader, ParentAdvanceInvoiceDialog } from "@/components/organisms";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { CheckCircle2, XCircle, Clock, ChevronDown, ChevronRight } from "lucide-react";
@@ -33,6 +33,7 @@ export default function AdvancesPage() {
   const { transactions, loading, refetch } = useDashboardTransactions();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
 
   const advanceTransactions: AdvanceTransaction[] = useMemo(() => {
     return transactions
@@ -100,7 +101,12 @@ export default function AdvancesPage() {
 
   return (
     <DashboardTemplate>
-      <PageHeader title="債権管理（立替）" userName={undefined} />
+      <PageHeader
+        title="債権管理（立替）"
+        userName={undefined}
+        showInvoiceButton
+        onInvoiceClick={() => setInvoiceDialogOpen(true)}
+      />
 
       {/* サマリー */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -197,6 +203,13 @@ export default function AdvancesPage() {
             );
           })}
         </div>
+      )}
+      {user?.id && (
+        <ParentAdvanceInvoiceDialog
+          open={invoiceDialogOpen}
+          onOpenChange={setInvoiceDialogOpen}
+          userId={user.id}
+        />
       )}
     </DashboardTemplate>
   );
