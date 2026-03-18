@@ -202,6 +202,7 @@ export const useTransactions = (filter?: TransactionFilter) => {
           totalAmount: data.advance.totalAmount || 0,
           advanceAmount: data.advance.advanceAmount || 0,
           personalAmount: data.advance.personalAmount || 0,
+          status: data.advance.status || 'pending',
           isRecovered: data.advance.isRecovered || false,
         } : undefined,
         calendar: data.calendarEventId ? { eventId: data.calendarEventId, eventName: '', eventType: 'during' as const } : undefined,

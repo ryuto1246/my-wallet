@@ -34,6 +34,7 @@ describe('balance-chart helpers', () => {
       totalAmount: amount,
       personalAmount: advance.personalAmount,
       advanceAmount: advance.advanceAmount,
+      status: 'pending' as const,
       isRecovered: false,
     } : undefined,
     createdAt: new Date(),

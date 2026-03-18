@@ -6,6 +6,7 @@ import {
   getPastPatterns,
   getSimilarPatterns,
   getUserCorrections,
+  getAggregatePatterns,
 } from "@/lib/firebase/ai-learning";
 import type { Category } from "@/types/category";
 
@@ -62,12 +63,12 @@ export const buildPriorHints = async (params: {
     return { topCandidates: [] };
   }
 
-  // 1) 過去の完全一致テキスト
-  const past = await getPastPatterns(userId, inputText);
-  // 2) 類似テキスト（部分一致・単語共有）
-  const similar = await getSimilarPatterns(userId, inputText, 50);
-  // 3) 総履歴（重み付けに利用）
-  const all = await getUserCorrections(userId, 200);
+  // Aggregate pattern: max 10 docs (vs old 200+50+200)
+  const patterns = await getAggregatePatterns(userId, 10);
+
+  if (patterns.length === 0) {
+    return { topCandidates: [] };
+  }
 
   type Acc = {
     key: string;
@@ -84,13 +85,9 @@ export const buildPriorHints = async (params: {
     const key = `${cat.main}::${cat.sub}::${desc}`;
     if (!map.has(key)) {
       map.set(key, {
-        key,
-        description: desc,
+        key, description: desc,
         category: { main: cat.main, sub: cat.sub },
-        score: 0,
-        aidFriendHits: 0,
-        aidParentHits: 0,
-        ratios: [],
+        score: 0, aidFriendHits: 0, aidParentHits: 0, ratios: [],
       });
     }
     const acc = map.get(key)!;
@@ -101,48 +98,31 @@ export const buildPriorHints = async (params: {
     if (signals.ratio !== undefined) acc.ratios.push(signals.ratio);
   };
 
-  // 完全一致は高評価
-  past.forEach((p, idx) => {
-    const recency = 1 - Math.min(idx / Math.max(past.length - 1, 1), 1); // 新しいほど高い
-    push(p.userCorrection.description, p.userCorrection.category, 2.0 + 0.5 * recency);
+  const normalizedInput = inputText.toLowerCase().trim();
+  const maxCount = Math.max(1, ...patterns.map(p => (p as { count?: number }).count || 1));
+
+  patterns.forEach((p) => {
+    const count = (p as { count?: number }).count || 1;
+    const countWeight = count / maxCount; // 0-1 relative frequency
+    const textMatch =
+      p.originalText.toLowerCase().includes(normalizedInput) ||
+      normalizedInput.includes(p.originalText.toLowerCase());
+    const base = textMatch ? 2.0 + countWeight : 0.5 + countWeight * 0.5;
+    push(p.userCorrection.description, p.userCorrection.category, base);
   });
 
-  // 類似一致は中評価
-  similar.forEach((p, idx) => {
-    const recency = 1 - Math.min(idx / Math.max(similar.length - 1, 1), 1);
-    push(p.userCorrection.description, p.userCorrection.category, 1.0 + 0.3 * recency);
-  });
-
-  // 総履歴でカテゴリの頻度を弱く加点
-  const categoryFreq = new Map<string, number>();
-  all.forEach((p) => {
-    const k = `${p.userCorrection.category.main}:${p.userCorrection.category.sub}`;
-    categoryFreq.set(k, (categoryFreq.get(k) || 0) + 1);
-  });
-  const maxFreq = Math.max(1, ...Array.from(categoryFreq.values()));
-
-  map.forEach((acc) => {
-    const k = `${acc.category.main}:${acc.category.sub}`;
-    const freq = categoryFreq.get(k) || 0;
-    acc.score += 0.3 * (freq / maxFreq);
-  });
-
-  // 上位3件を選出し、スコアを0-1へ正規化
   const sorted = Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 3);
-  const maxScore = Math.max(1, ...sorted.map((s) => s.score));
-  const topCandidates: PriorCandidate[] = sorted.map((s) => ({
+  const maxScore = Math.max(1, ...sorted.map(s => s.score));
+  const topCandidates: PriorCandidate[] = sorted.map(s => ({
     description: s.description,
     category: s.category,
     weight: clamp01(s.score / maxScore),
   }));
 
-  // 援助事前確率の推定
-  let friendHits = 0;
-  let parentHits = 0;
-  let total = 0;
+  // Aid prior from patterns
+  let friendHits = 0, parentHits = 0, total = 0;
   const ratios: number[] = [];
-
-  all.forEach((p) => {
+  patterns.forEach(p => {
     total += 1;
     const sig = detectAidSignals(p.userCorrection.description);
     friendHits += sig.friend > 0 ? 1 : 0;
@@ -155,8 +135,7 @@ export const buildPriorHints = async (params: {
     const friend = friendHits / total;
     const parent = parentHits / total;
     const none = clamp01(1 - friend - parent);
-    const typicalRatio =
-      ratios.length > 0 ? clamp01(ratios.reduce((a, b) => a + b, 0) / ratios.length) : undefined;
+    const typicalRatio = ratios.length > 0 ? clamp01(ratios.reduce((a, b) => a + b, 0) / ratios.length) : undefined;
     aidPrior = { friend: clamp01(friend), parent: clamp01(parent), none, typicalRatio };
   }
 

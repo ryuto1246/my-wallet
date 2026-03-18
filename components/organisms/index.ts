@@ -16,4 +16,5 @@ export { BalanceAdjustmentDialog } from "./BalanceAdjustmentDialog";
 export { TransferFormDialog } from "./TransferFormDialog";
 export { ParentAdvanceInvoiceDialog } from "./ParentAdvanceInvoiceDialog";
 export { UnidentifiedFundsChart } from "./UnidentifiedFundsChart";
+export { ChatInterface } from "./ChatInterface";
 

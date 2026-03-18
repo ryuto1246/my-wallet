@@ -41,6 +41,7 @@ import type {
   TransactionInput,
   PaymentMethodValue,
 } from "@/types/transaction";
+import type { InlineEditData } from "@/components/molecules";
 
 export default function TransactionsPage() {
   const { user } = useAuth();
@@ -258,6 +259,22 @@ export default function TransactionsPage() {
       }
     } catch (error) {
       console.error("一括登録エラー:", error);
+      throw error;
+    }
+  };
+
+  // インライン編集の保存
+  const handleInlineUpdate = async (id: string, data: InlineEditData) => {
+    try {
+      await updateTransaction(id, {
+        date: data.date,
+        amount: data.amount,
+        description: data.description,
+        category: { main: data.categoryMain, sub: data.categorySub },
+        isIncome: data.isIncome,
+      });
+    } catch (error) {
+      console.error("インライン更新エラー:", error);
       throw error;
     }
   };
@@ -564,6 +581,7 @@ export default function TransactionsPage() {
         onPreviousPage={previousPage}
         onDelete={handleDelete}
         onEdit={handleEdit}
+        onInlineUpdate={handleInlineUpdate}
       />
 
       <TransactionFormNew

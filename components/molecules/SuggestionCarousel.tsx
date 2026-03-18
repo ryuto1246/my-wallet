@@ -16,9 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getConfidenceLevel } from "@/lib/gemini";
+import { getConfidenceLevel } from "@/lib/claude/suggestion-types";
 import { CATEGORIES, getSubCategories } from "@/constants/categories";
-import type { AISuggestion } from "@/lib/gemini";
+import type { AISuggestion } from "@/lib/claude/suggestion-types";
 import type { UseFormReturn } from "react-hook-form";
 import type { TransactionFormValues } from "@/lib/validations/transaction";
 
@@ -52,24 +52,14 @@ export function SuggestionCarousel({
   useEffect(() => {
     if (suggestions.length > 0 && suggestions[0]) {
       const suggestion = suggestions[0];
-      console.log("🤖 AIサジェスト適用:", {
-        isIncome: suggestion.isIncome,
-        mainCategory: suggestion.category.main,
-        subCategory: suggestion.category.sub,
-        description: suggestion.description,
-      });
       onSelect(suggestion);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestions.length]);
 
-  if (suggestions.length === 0) {
-    return null;
-  }
-
-  // 最初のサジェストのみ使用
+  const hasSuggestion = suggestions.length > 0;
   const currentSuggestion = suggestions[0];
-  const level = getConfidenceLevel(currentSuggestion.confidence);
+  const level = hasSuggestion ? getConfidenceLevel(currentSuggestion.confidence) : null;
 
   const getConfidenceText = () => {
     switch (level) {
@@ -79,6 +69,8 @@ export function SuggestionCarousel({
         return "中確信度";
       case "low":
         return "低確信度";
+      default:
+        return "";
     }
   };
 
@@ -107,17 +99,25 @@ export function SuggestionCarousel({
       {/* ヘッダー */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-purple-600" />
-          <span className="text-base font-bold text-gray-800">
-            AIサジェスチョン
-          </span>
-          <Badge
-            variant="outline"
-            className="text-xs font-medium border-purple-300 text-purple-700"
-          >
-            {getConfidenceText()}{" "}
-            {Math.round(currentSuggestion.confidence * 100)}%
-          </Badge>
+          {hasSuggestion ? (
+            <>
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              <span className="text-base font-bold text-gray-800">
+                AIサジェスチョン
+              </span>
+              <Badge
+                variant="outline"
+                className="text-xs font-medium border-purple-300 text-purple-700"
+              >
+                {getConfidenceText()}{" "}
+                {Math.round(currentSuggestion.confidence * 100)}%
+              </Badge>
+            </>
+          ) : (
+            <span className="text-base font-bold text-gray-700">
+              入力内容
+            </span>
+          )}
         </div>
       </div>
 

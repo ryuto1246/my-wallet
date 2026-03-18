@@ -349,10 +349,11 @@ export function transformFormDataToTransaction(
   // 立替情報がある場合は追加
   if (data.hasAdvance && data.advance) {
     const advanceInfo: {
-      type: 'friend' | 'parent' | null;
+      type: string | null;
       totalAmount: number;
       advanceAmount: number;
       personalAmount: number;
+      status: 'pending' | 'recovered' | 'abandoned';
       isRecovered: boolean;
       memo?: string;
     } = {
@@ -360,6 +361,7 @@ export function transformFormDataToTransaction(
       totalAmount: data.advance.totalAmount,
       advanceAmount: data.advance.advanceAmount,
       personalAmount: data.advance.personalAmount,
+      status: 'pending',
       isRecovered: false, // 新規作成時は未回収
     };
 

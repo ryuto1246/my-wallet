@@ -10,7 +10,6 @@ import {
   uploadTransactionImageWithProgress,
   validateImageFile,
 } from '@/lib/firebase/storage';
-import { recognizeTransactionFromImage } from '@/lib/gemini/vision';
 import { detectDuplicate } from '@/lib/helpers/duplicate-detection';
 import type {
   ImageRecognitionResult,
@@ -138,10 +137,22 @@ export function useImageRecognition(
             );
 
             // 2. 画像を認識
-            const recognizedTransaction = await recognizeTransactionFromImage(
-              file,
-              ocrOptions
-            );
+            // Build FormData and call API Route
+            const formData = new FormData();
+            formData.append('image', file);
+            if (Object.keys(ocrOptions).length > 0) {
+              formData.append('options', JSON.stringify(ocrOptions));
+            }
+            const res = await fetch('/api/ai/vision', {
+              method: 'POST',
+              body: formData,
+            });
+            if (res.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
+            if (!res.ok) throw new Error('画像から取引情報を認識できませんでした');
+            const recognizedTransaction: RecognizedTransaction = await res.json();
+            if (recognizedTransaction.date) {
+              recognizedTransaction.date = new Date(recognizedTransaction.date as unknown as string);
+            }
 
             // 2.5 履歴ヒントで軽量リランク（LLMなし）
             try {

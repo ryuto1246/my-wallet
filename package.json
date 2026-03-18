@@ -17,6 +17,7 @@
     "list-gemini-models": "tsx scripts/list-gemini-models.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.79.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-avatar": "^1.1.10",

@@ -263,7 +263,7 @@ export const predictFromHistory = async (
   isIncome: boolean;
 } | null> => {
   const patterns = await getPastPatterns(userId, originalText);
-  
+
   if (patterns.length === 0) {
     return null;
   }
@@ -271,17 +271,17 @@ export const predictFromHistory = async (
   // コンテキストマッチングのスコアを計算
   const scoredPatterns = patterns.map(p => {
     let score = 0;
-    
+
     // 時間帯が一致（重要度：高）
     if (p.context.timeOfDay === context.timeOfDay) {
       score += 3;
     }
-    
+
     // 曜日が一致（重要度：中）
     if (p.context.dayOfWeek === context.dayOfWeek) {
       score += 2;
     }
-    
+
     // 金額が近い（重要度：中）
     if (p.context.amount && context.amount) {
       const diff = Math.abs(p.context.amount - context.amount);
@@ -289,29 +289,29 @@ export const predictFromHistory = async (
       if (ratio < 0.2) score += 2; // 20%以内の誤差
       else if (ratio < 0.5) score += 1; // 50%以内の誤差
     }
-    
+
     // 決済方法が一致（重要度：低）
     if (p.context.paymentMethod === context.paymentMethod) {
       score += 1;
     }
-    
+
     return { pattern: p, score };
   });
 
   // スコアでソート
   scoredPatterns.sort((a, b) => b.score - a.score);
-  
+
   const best = scoredPatterns[0];
-  
+
   // スコアに基づいて確信度を計算
   const maxScore = 8; // 最大スコア（時間帯3 + 曜日2 + 金額2 + 決済方法1）
   const baseConfidence = 0.7;
   const scoreBonus = (best.score / maxScore) * 0.2; // 最大+0.2
   const confidence = Math.min(0.95, baseConfidence + scoreBonus);
-  
+
   // カテゴリーから収入/支出を判定
   const isIncome = best.pattern.userCorrection.category.main === '収入';
-  
+
   return {
     category: best.pattern.userCorrection.category,
     description: best.pattern.userCorrection.description,
@@ -320,3 +320,101 @@ export const predictFromHistory = async (
   };
 };
 
+// ===== Aggregate Pattern (v2) =====
+
+const AGGREGATE_COLLECTION = 'ai_learning_v2';
+
+/**
+ * テキストの簡易ハッシュを生成
+ */
+function simpleTextHash(text: string): string {
+  const normalized = text.toLowerCase().trim().replace(/\s+/g, ' ');
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i++) {
+    const char = normalized.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+/**
+ * 集約パターンによる学習データのアップサート
+ * 同じテキストの修正は1ドキュメントにまとめる（カウントアップ）
+ */
+export const upsertLearningPattern = async (
+  userId: string,
+  originalText: string,
+  userCorrection: {
+    category: Category;
+    description: string;
+  },
+  context?: AILearningContext
+): Promise<void> => {
+  try {
+    const textHash = simpleTextHash(originalText);
+    const docId = `${userId}_${textHash}`;
+
+    const { doc, setDoc, getDoc, increment } = await import('firebase/firestore');
+    const docRef = doc(db, AGGREGATE_COLLECTION, docId);
+    const existing = await getDoc(docRef);
+
+    if (existing.exists()) {
+      await setDoc(docRef, {
+        userCorrection,
+        context: context || null,
+        count: increment(1),
+        lastUpdatedAt: serverTimestamp(),
+      }, { merge: true });
+    } else {
+      await setDoc(docRef, {
+        userId,
+        originalText,
+        textHash,
+        userCorrection,
+        context: context || null,
+        count: 1,
+        createdAt: serverTimestamp(),
+        lastUpdatedAt: serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.error('Error upserting learning pattern:', error);
+    throw error;
+  }
+};
+
+/**
+ * 集約パターンから学習データを取得（最大10件）
+ */
+export const getAggregatePatterns = async (
+  userId: string,
+  limitCount = 10
+): Promise<AILearningData[]> => {
+  try {
+    const { query: fsQuery, where: fsWhere, orderBy: fsOrderBy, limit: fsLimit, getDocs: fsGetDocs } = await import('firebase/firestore');
+    const q = fsQuery(
+      collection(db, AGGREGATE_COLLECTION),
+      fsWhere('userId', '==', userId),
+      fsOrderBy('count', 'desc'),
+      fsLimit(limitCount)
+    );
+
+    const snapshot = await fsGetDocs(q);
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        originalText: data.originalText,
+        aiSuggestion: data.aiSuggestion || { category: data.userCorrection?.category, description: data.userCorrection?.description },
+        userCorrection: data.userCorrection,
+        context: data.context || {},
+        timestamp: data.lastUpdatedAt ? (data.lastUpdatedAt as Timestamp).toDate() : new Date(),
+      };
+    });
+  } catch (error) {
+    console.error('Error getting aggregate patterns:', error);
+    return [];
+  }
+};

@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 // 立替情報のスキーマ
 export const advanceInfoSchema = z.object({
-  type: z.enum(['friend', 'parent']).nullable(),
+  type: z.string().nullable(),  // 自由記述の立替相手名（後方互換: 'friend', 'parent' も有効）
   totalAmount: z.number().positive(),
   advanceAmount: z.number().min(0),
   personalAmount: z.number().min(0),

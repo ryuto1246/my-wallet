@@ -26,7 +26,6 @@ import { ImageUploadZone } from "@/components/organisms/ImageUploadZone";
 import { TransactionFormNew } from "@/components/organisms";
 import { RecognizedTransactionItem } from "@/components/molecules";
 import { useAuth, useTransactions } from "@/hooks";
-import { recognizeBatchTransactionsFromImage } from "@/lib/gemini/batch-vision";
 import { uploadTransactionImage } from "@/lib/firebase/storage";
 import { batchDetectDuplicates } from "@/lib/helpers/duplicate-detection";
 import {
@@ -114,13 +113,19 @@ export function BatchImageRecognitionDialog({
           uploadedUrls.push(uploadedUrl);
 
           // 2. 画像から複数の取引を認識
-          const recognizedTransactions =
-            await recognizeBatchTransactionsFromImage(file, {
-              serviceHint:
-                selectedPaymentService !== "unknown"
-                  ? selectedPaymentService
-                  : undefined,
-            });
+          const batchFormData = new FormData();
+          batchFormData.append('image', file);
+          if (selectedPaymentService !== "unknown") {
+            batchFormData.append('options', JSON.stringify({ serviceHint: selectedPaymentService }));
+          }
+          const batchRes = await fetch('/api/ai/batch-vision', { method: 'POST', body: batchFormData });
+          if (batchRes.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
+          if (!batchRes.ok) throw new Error('画像から取引情報を認識できませんでした');
+          const rawTransactions: RecognizedTransaction[] = await batchRes.json();
+          const recognizedTransactions = rawTransactions.map(t => ({
+            ...t,
+            date: t.date ? new Date(t.date as unknown as string) : null,
+          }));
 
           // 認識された取引を追加
           allRecognizedTransactions.push(...recognizedTransactions);

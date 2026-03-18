@@ -585,86 +585,26 @@ export function TransactionFormNew({
 
             {/* AIサジェスチョン表示 */}
             {aiLoading && (
-              <div className="text-center py-2 md:py-4 text-gray-500">
+              <div className="text-center py-2 text-sm text-gray-400">
                 AIが提案を考えています...
               </div>
             )}
 
-            {/* APIキーが設定されていない場合 */}
-            {!aiAvailable && keyword.trim().length >= 2 && (
-              <div className="text-center py-2 md:py-4">
-                <div className="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
-                  AI
-                  APIキーが設定されていません。環境変数にNEXT_PUBLIC_GEMINI_API_KEYを設定してください。
-                </div>
+            {/* AIエラー通知（非ブロッキング） */}
+            {!aiLoading && aiError && keyword.trim().length >= 2 && (
+              <div className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5 text-center">
+                {quotaExceeded ? aiError : "AI提案を取得できませんでした。手動で入力してください。"}
               </div>
             )}
 
-            {/* キーワードが短すぎる場合 */}
-            {aiAvailable &&
-              keyword.trim().length > 0 &&
-              keyword.trim().length < 2 && (
-                <div className="text-center py-2 md:py-4">
-                  <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-                    キーワードは2文字以上入力してください
-                  </div>
-                </div>
-              )}
-
-            {/* レートリミットエラーの場合 */}
-            {quotaExceeded && (
-              <div className="text-center py-2 md:py-4">
-                <div className="text-sm text-amber-600 bg-amber-50 rounded-lg p-3">
-                  {aiError}
-                </div>
-              </div>
-            )}
-
-            {/* その他のエラーの場合 */}
-            {!aiLoading &&
-              !quotaExceeded &&
-              aiError &&
-              keyword.trim().length >= 2 && (
-                <div className="text-center py-2 md:py-4">
-                  <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
-                    {aiError}
-                  </div>
-                </div>
-              )}
-
-            {/* 編集モード時は現在の情報を表示、新規作成時またはユーザーがキーワードを入力した時はAIサジェスチョンを表示 */}
-            {!aiLoading && !quotaExceeded && (
-              <>
-                {/* 編集モードでAIサジェスチョンがない場合：現在の情報を表示 */}
-                {isEditMode &&
-                  suggestions.length === 0 &&
-                  currentInfoSuggestion && (
-                    <SuggestionCarousel
-                      suggestions={[currentInfoSuggestion]}
-                      onSelect={handleSuggestionSelect}
-                      form={form}
-                      amount={amount}
-                    />
-                  )}
-
-                {/* AIサジェスチョンがある場合：AIサジェスチョンを表示 */}
-                {suggestions.length > 0 && (
-                  <SuggestionCarousel
-                    suggestions={suggestions}
-                    onSelect={handleSuggestionSelect}
-                    form={form}
-                    amount={amount}
-                  />
-                )}
-              </>
-            )}
-
-            {aiError && !quotaExceeded && (
-              <div className="text-center py-2 md:py-4">
-                <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
-                  {aiError}
-                </div>
-              </div>
+            {/* 常に入力フォームを表示（AIロード中は除く） */}
+            {!aiLoading && !isTransfer && (
+              <SuggestionCarousel
+                suggestions={suggestions}
+                onSelect={handleSuggestionSelect}
+                form={form}
+                amount={amount}
+              />
             )}
 
             {/* 振替フィールド（振替選択時のみ表示） */}

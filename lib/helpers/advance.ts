@@ -113,7 +113,10 @@ export function validateAdvanceInfo(advance: AdvanceInfo): {
  * 立替情報を含むトランザクションのフォーマット
  */
 export function formatAdvanceInfo(advance: AdvanceInfo): string {
-  const typeLabel = advance.type === 'friend' ? '友人立替' : '親負担';
+  // 後方互換: 'friend'→友人立替, 'parent'→親負担, その他→相手名をそのまま使用
+  const typeLabel = advance.type === 'friend' ? '友人立替'
+    : advance.type === 'parent' ? '親負担'
+    : advance.type || '立替';
   const parts = [typeLabel];
 
   // advanceAmountとpersonalAmountが有効な場合のみ追加
