@@ -20,10 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar as CalendarIcon, ArrowRightLeft, Wallet } from "lucide-react";
+import { Calendar as CalendarIcon, Wallet } from "lucide-react";
 import { format } from "date-fns";
-import { PAYMENT_METHODS } from "@/constants";
 import { ErrorMessage } from "@/components/atoms";
+import { TransferFields } from "@/components/molecules";
 
 const transferFormSchema = z
   .object({
@@ -125,13 +125,6 @@ export function TransferFormDialog({
     }
   }, [open, defaultValues, reset]);
 
-  // 振替元と振替先を入れ替える
-  const handleSwapMethods = () => {
-    const temp = fromMethod;
-    setValue("from", toMethod || "");
-    setValue("to", temp || "");
-  };
-
   const handleFormSubmit = async (data: TransferFormData) => {
     setIsSubmitting(true);
     setError(null);
@@ -215,76 +208,16 @@ export function TransferFormDialog({
             </div>
           </div>
 
-          {/* 振替元と振替先 - 横並び */}
-          <div className="relative">
-            <div className="flex flex-row items-start gap-3">
-              {/* 振替元 */}
-              <div className="flex-1 space-y-2 p-5 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-gray-200 hover:border-indigo-300 transition-colors">
-                <Label
-                  htmlFor="from"
-                  className="text-sm font-semibold text-gray-700 flex items-center gap-2"
-                >
-                  <span className="inline-block w-2 h-2 rounded-full bg-red-500"></span>
-                  振替元 *
-                </Label>
-                <select
-                  id="from"
-                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-white font-medium text-gray-900 transition-colors"
-                  value={fromMethod || ""}
-                  onChange={(e) => setValue("from", e.target.value)}
-                >
-                  <option value="">選択してください</option>
-                  {PAYMENT_METHODS.map((method) => (
-                    <option key={method.value} value={method.value}>
-                      {method.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.from && (
-                  <ErrorMessage message={errors.from.message || ""} />
-                )}
-              </div>
-
-              {/* 矢印（入れ替えボタン） */}
-              <div className="flex items-center pt-8">
-                <button
-                  type="button"
-                  onClick={handleSwapMethods}
-                  className="p-3 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg hover:from-indigo-600 hover:to-purple-600 transition-all hover:scale-110 active:scale-95 cursor-pointer"
-                  title="振替元と振替先を入れ替える"
-                >
-                  <ArrowRightLeft className="w-6 h-6 text-white" />
-                </button>
-              </div>
-
-              {/* 振替先 */}
-              <div className="flex-1 space-y-2 p-5 rounded-xl bg-white/80 backdrop-blur-sm border-2 border-gray-200 hover:border-indigo-300 transition-colors">
-                <Label
-                  htmlFor="to"
-                  className="text-sm font-semibold text-gray-700 flex items-center gap-2"
-                >
-                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                  振替先 *
-                </Label>
-                <select
-                  id="to"
-                  className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-white font-medium text-gray-900 transition-colors"
-                  value={toMethod || ""}
-                  onChange={(e) => setValue("to", e.target.value)}
-                >
-                  <option value="">選択してください</option>
-                  {PAYMENT_METHODS.map((method) => (
-                    <option key={method.value} value={method.value}>
-                      {method.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.to && (
-                  <ErrorMessage message={errors.to.message || ""} />
-                )}
-              </div>
-            </div>
-          </div>
+          {/* 振替元と振替先 */}
+          <TransferFields
+            from={fromMethod || ""}
+            to={toMethod || ""}
+            onFromChange={(v) => setValue("from", v)}
+            onToChange={(v) => setValue("to", v)}
+            showSwap
+            fromError={errors.from?.message}
+            toError={errors.to?.message}
+          />
 
           {/* 日付と説明 */}
           <div className="grid grid-cols-2 gap-4">

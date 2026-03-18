@@ -29,6 +29,7 @@ import { useAISuggestion, useImageRecognition } from "@/hooks";
 import {
   SuggestionCarousel,
   TransactionAmountInput,
+  TransferFields,
 } from "@/components/molecules";
 import { saveUserCorrection } from "@/lib/firebase/ai-learning";
 import { useAuth } from "@/hooks";
@@ -39,7 +40,6 @@ import {
   getDayOfWeek,
   getPaymentMethodFromService,
 } from "@/lib/helpers";
-import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 
 interface TransactionFormNewProps {
   open: boolean;
@@ -610,55 +610,19 @@ export function TransactionFormNew({
             {/* 振替フィールド（振替選択時のみ表示） */}
             {isTransfer && (
               <div className="space-y-3 md:space-y-4 p-3 md:p-4 border rounded-lg bg-white">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs md:text-sm text-gray-600">
-                      振替元（自動）
-                    </Label>
-                    <select
-                      className="w-full mt-1 bg-white/60 backdrop-blur-sm border-0 rounded-lg md:rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all cursor-not-allowed"
-                      value={paymentMethod || ""}
-                      disabled
-                    >
-                      <option value="">選択してください</option>
-                      {PAYMENT_METHODS.map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label className="text-xs md:text-sm text-gray-600">
-                      振替先
-                    </Label>
-                    <select
-                      className="w-full mt-1 bg-white/60 backdrop-blur-sm border-0 rounded-lg md:rounded-xl px-3 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
-                      value={form.watch("transfer.to") || ""}
-                      onChange={(e) =>
-                        form.setValue(
-                          "transfer.to",
-                          e.target.value as PaymentMethodValue,
-                          { shouldValidate: true }
-                        )
-                      }
-                    >
-                      <option value="">選択してください</option>
-                      {PAYMENT_METHODS.map((m) => (
-                        <option
-                          key={m.value}
-                          value={m.value}
-                          disabled={m.value === (paymentMethod || "")}
-                        >
-                          {m.label}
-                          {m.value === (paymentMethod || "")
-                            ? "（振替元）"
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                <TransferFields
+                  from={paymentMethod || ""}
+                  to={form.watch("transfer.to") || ""}
+                  onFromChange={() => {}}
+                  onToChange={(v) =>
+                    form.setValue("transfer.to", v as PaymentMethodValue, {
+                      shouldValidate: true,
+                    })
+                  }
+                  fromDisabled
+                  showSwap={false}
+                  compact
+                />
                 <div>
                   <Label className="text-xs md:text-sm text-gray-600">
                     説明
