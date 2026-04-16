@@ -11,7 +11,6 @@ import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -20,21 +19,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Pencil, Check, X } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { getPaymentMethodLabel } from "@/constants/paymentMethods";
-import { CATEGORIES, getSubCategories } from "@/constants/categories";
 import { AdvanceInfo } from "@/types/advance";
-import { PaymentMethodValue, TransferInfo } from "@/types/transaction";
 
-export interface InlineEditData {
-  description: string;
-  amount: number;
-  date: Date;
-  categoryMain: string;
-  categorySub: string;
-  isIncome: boolean;
-  memo?: string;
-}
+import { PaymentMethodValue, TransferInfo } from "@/types/transaction";
 
 interface TransactionListItemProps {
   id: string;
@@ -50,11 +39,8 @@ interface TransactionListItemProps {
   showBadge?: boolean;
   showPaymentMethod?: boolean;
   dateFormat?: string;
-  isEditing?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
-  onSave?: (id: string, data: InlineEditData) => void;
-  onCancelEdit?: (id: string) => void;
 }
 
 export function TransactionListItem({
@@ -71,51 +57,18 @@ export function TransactionListItem({
   showBadge = false,
   showPaymentMethod = false,
   dateFormat = "M/d(E)",
-  isEditing = false,
   onDelete,
   onEdit,
-  onSave,
-  onCancelEdit,
 }: TransactionListItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isSwipeOpen, setIsSwipeOpen] = useState(false);
   const [startX, setStartX] = useState(0);
   const [currentX, setCurrentX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // インライン編集用ローカル状態
-  const [editDescription, setEditDescription] = useState(description);
-  const [editAmount, setEditAmount] = useState(amount);
-  const [editDate, setEditDate] = useState(format(date, "yyyy-MM-dd"));
-  const [editCategoryMain, setEditCategoryMain] = useState(categoryMain);
-  const [editCategorySub, setEditCategorySub] = useState(categorySub);
-  const [editIsIncome, setEditIsIncome] = useState(isIncome);
-
-  // 編集モードに入ったとき初期値を設定
-  useEffect(() => {
-    if (isEditing) {
-      setEditDescription(description);
-      setEditAmount(amount);
-      setEditDate(format(date, "yyyy-MM-dd"));
-      setEditCategoryMain(categoryMain);
-      setEditCategorySub(categorySub);
-      setEditIsIncome(isIncome);
-    }
-  }, [isEditing, description, amount, date, categoryMain, categorySub, isIncome]);
-
-  const handleInlineSave = () => {
-    if (!onSave) return;
-    onSave(id, {
-      description: editDescription,
-      amount: editAmount,
-      date: new Date(editDate),
-      categoryMain: editCategoryMain,
-      categorySub: editCategorySub,
-      isIncome: editIsIncome,
-    });
-  };
   const isAdvanceRecovery = isIncome && categorySub === "立替金回収";
   const isTransfer = !!transfer;
 
@@ -123,12 +76,13 @@ export function TransactionListItem({
     if (!onDelete) return;
 
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       await onDelete(id);
       setDeleteDialogOpen(false);
     } catch (error) {
       console.error("削除エラー:", error);
-      alert("削除に失敗しました");
+      setDeleteError("削除に失敗しました。もう一度お試しください。");
     } finally {
       setIsDeleting(false);
     }
@@ -182,117 +136,6 @@ export function TransactionListItem({
       return () => document.removeEventListener("click", handleClickOutside);
     }
   }, [isSwipeOpen]);
-
-  // インライン編集フォーム
-  if (isEditing) {
-    const editSubCategories = getSubCategories(editCategoryMain);
-    return (
-      <div className="rounded-2xl border-2 border-blue-300 bg-blue-50/80 p-3 md:p-4 space-y-3">
-        {/* タイプ選択 */}
-        <div className="flex gap-1">
-          {[
-            { key: false, label: "支出" },
-            { key: true, label: "収入" },
-          ].map((t) => (
-            <button
-              key={String(t.key)}
-              type="button"
-              onClick={() => {
-                setEditIsIncome(t.key);
-                setEditCategoryMain("");
-                setEditCategorySub("");
-              }}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
-                editIsIncome === t.key
-                  ? t.key ? "bg-green-600 text-white" : "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 border"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* 説明・日付・金額 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <Input
-            value={editDescription}
-            onChange={(e) => setEditDescription(e.target.value)}
-            placeholder="項目名"
-            className="bg-white text-sm"
-          />
-          <input
-            type="date"
-            value={editDate}
-            onChange={(e) => setEditDate(e.target.value)}
-            className="w-full bg-white border border-input rounded-md px-3 py-2 text-sm"
-          />
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 text-sm font-medium">¥</span>
-            <Input
-              type="number"
-              value={editAmount}
-              onChange={(e) => setEditAmount(Number(e.target.value) || 0)}
-              placeholder="金額"
-              className="bg-white text-sm"
-            />
-          </div>
-        </div>
-
-        {/* カテゴリ */}
-        <div className="grid grid-cols-2 gap-2">
-          <select
-            value={editCategoryMain}
-            onChange={(e) => {
-              setEditCategoryMain(e.target.value);
-              setEditCategorySub("");
-            }}
-            className="w-full bg-white border border-input rounded-md px-3 py-2 text-sm"
-          >
-            <option value="">メインカテゴリ</option>
-            {CATEGORIES.filter((c) => c.isIncome === editIsIncome).map((c) => (
-              <option key={c.main} value={c.main}>{c.main}</option>
-            ))}
-          </select>
-          <select
-            value={editCategorySub}
-            onChange={(e) => setEditCategorySub(e.target.value)}
-            disabled={!editCategoryMain}
-            className="w-full bg-white border border-input rounded-md px-3 py-2 text-sm disabled:opacity-50"
-          >
-            <option value="">サブカテゴリ</option>
-            {editSubCategories.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* 保存・キャンセル */}
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onCancelEdit?.(id)}
-            className="rounded-xl text-xs"
-          >
-            <X className="h-3 w-3 mr-1" />
-            キャンセル
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleInlineSave}
-            disabled={!editDescription || !editCategoryMain || !editCategorySub}
-            className="rounded-xl text-xs bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Check className="h-3 w-3 mr-1" />
-            保存
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -420,7 +263,7 @@ export function TransactionListItem({
                     className="rounded-full px-1.5 py-0.5 text-xs font-semibold text-orange-600 border-orange-600 bg-orange-50"
                   >
                     {advance.type === "friend" ? "友人立替"
-                      : advance.type === "parent" ? "親負担"
+                      : advance.type === "parent" ? "父"
                       : advance.type || "立替"}
                   </Badge>
                 )}
@@ -530,7 +373,7 @@ export function TransactionListItem({
       </div>
 
       {/* 削除確認ダイアログ */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) setDeleteError(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>取引を削除しますか？</DialogTitle>
@@ -538,6 +381,11 @@ export function TransactionListItem({
               この操作は取り消せません。本当にこの取引を削除してもよろしいですか？
             </DialogDescription>
           </DialogHeader>
+          {deleteError && (
+            <div className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2">
+              {deleteError}
+            </div>
+          )}
           <div className="bg-gray-50 rounded-xl p-4 my-2">
             <div className="text-sm text-gray-600 mb-2">
               {format(date, "yyyy年M月d日(E)", { locale: ja })}

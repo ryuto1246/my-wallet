@@ -8,6 +8,7 @@
 import { AlertTriangle, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatDate } from "@/lib/helpers/format";
 import type { RecognizedTransaction } from "@/types/image-recognition";
 import type { AdvanceInfo } from "@/types/advance";
@@ -59,11 +60,10 @@ export function RecognizedTransactionItem({
       <div className="flex items-start gap-4">
         {/* チェックボックス */}
         <div className="pt-1">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={selected}
-            onChange={onToggleSelect}
-            className="w-5 h-5 rounded border-gray-300"
+            onCheckedChange={() => onToggleSelect()}
+            className="w-5 h-5"
           />
         </div>
 
@@ -96,7 +96,7 @@ export function RecognizedTransactionItem({
               {/* 立替/援助バッジ */}
               {advance && (
                 <Badge className="rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-                  {advance.type === "parent" ? "援助" : "立替"}
+                  {advance.type === "parent" ? "父" : "立替"}
                 </Badge>
               )}
               {isDuplicate && (

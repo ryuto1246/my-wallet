@@ -6,11 +6,10 @@
 
 "use client";
 
-import { useState } from "react";
 import { GlassCard, Pagination } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { TransactionListItem, InlineEditData } from "@/components/molecules";
+import { TransactionListItem } from "@/components/molecules";
 import { Transaction } from "@/types";
 
 interface TransactionListProps {
@@ -35,7 +34,6 @@ interface TransactionListProps {
   onPreviousPage?: () => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
-  onInlineUpdate?: (id: string, data: InlineEditData) => Promise<void>;
 }
 
 export function TransactionList({
@@ -59,29 +57,7 @@ export function TransactionList({
   onPreviousPage,
   onDelete,
   onEdit,
-  onInlineUpdate,
 }: TransactionListProps) {
-  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
-
-  const handleEditClick = (id: string) => {
-    if (!onInlineUpdate) {
-      onEdit?.(id);
-      return;
-    }
-    // 振替・立替（複雑なケース）はダイアログを開く
-    const transaction = transactions.find((t) => t.id === id);
-    if (transaction?.transfer || transaction?.advance) {
-      onEdit?.(id);
-      return;
-    }
-    // シンプルな取引はインライン編集
-    setInlineEditId(id);
-  };
-
-  const handleInlineSave = async (id: string, data: InlineEditData) => {
-    await onInlineUpdate?.(id, data);
-    setInlineEditId(null);
-  };
 
   return (
     <GlassCard
@@ -167,11 +143,8 @@ export function TransactionList({
                   showBadge={showBadge}
                   showPaymentMethod={showPaymentMethod}
                   dateFormat={dateFormat}
-                  isEditing={transaction.id === inlineEditId}
                   onDelete={onDelete}
-                  onEdit={handleEditClick}
-                  onSave={onInlineUpdate ? handleInlineSave : undefined}
-                  onCancelEdit={() => setInlineEditId(null)}
+                  onEdit={onEdit}
                 />
               ))}
             </div>
@@ -181,6 +154,7 @@ export function TransactionList({
               <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
+                  totalPages={totalPages}
                   hasNext={hasMore}
                   hasPrevious={hasPrevious}
                   onNextPage={onNextPage}

@@ -284,7 +284,7 @@ export function TransactionAmountInput({
               >
                 <div className="flex items-center gap-0.5 md:gap-1.5">
                   <span className="text-xs md:text-base">👨‍👩‍👧</span>
-                  <span className="hidden sm:inline">援助</span>
+                  <span className="hidden sm:inline">父</span>
                 </div>
               </button>
               <button

@@ -48,14 +48,19 @@ export function SuggestionCarousel({
   // 編集モードの状態管理
   const [editingField, setEditingField] = useState<string | null>(null);
 
-  // 最初のサジェストを自動適用
+  // サジェスト内容の変化を安定したキーで追跡
+  const firstSuggestionKey = suggestions[0]
+    ? `${suggestions[0].description}|${suggestions[0].category.main}|${suggestions[0].category.sub}|${suggestions[0].confidence}`
+    : null;
+
+  // 最初のサジェストを自動適用（内容が変わった時のみ）
   useEffect(() => {
     if (suggestions.length > 0 && suggestions[0]) {
-      const suggestion = suggestions[0];
-      onSelect(suggestion);
+      onSelect(suggestions[0]);
     }
+    // onSelectはサジェスト変化時のみ実行するため依存から除外
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestions.length]);
+  }, [firstSuggestionKey]);
 
   const hasSuggestion = suggestions.length > 0;
   const currentSuggestion = suggestions[0];
@@ -230,7 +235,6 @@ export function SuggestionCarousel({
                   <Select
                     key={`main-${isIncome}-${isTransfer}-${categoryMain}`}
                     onValueChange={(value) => {
-                      console.log("📝 メインカテゴリー変更:", value);
                       form.setValue("categoryMain", value);
                       form.setValue("categorySub", "");
                     }}
@@ -280,7 +284,6 @@ export function SuggestionCarousel({
                   <Select
                     key={`sub-${isTransfer}-${categoryMain}-${categorySub}`}
                     onValueChange={(value) => {
-                      console.log("📝 サブカテゴリー変更:", value);
                       form.setValue("categorySub", value);
                     }}
                     value={categorySub || undefined}
@@ -324,8 +327,8 @@ export function SuggestionCarousel({
                   {/* 立替金額入力 */}
                   <div className="mb-3">
                     <label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                      {advanceType === "parent" ? "援助金額" : "立替金額"}（
-                      {advanceType === "parent" ? "援助" : "友達の分"}）
+                      {advanceType === "parent" ? "父の負担額" : "立替金額"}（
+                      {advanceType === "parent" ? "父の分" : "友達の分"}）
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
@@ -398,7 +401,7 @@ export function SuggestionCarousel({
 
                       <div className="flex items-baseline gap-1">
                         <span className="text-blue-500">
-                          {advanceType === "parent" ? "援助" : "立替"}
+                          {advanceType === "parent" ? "父" : "立替"}
                         </span>
                         <span className="font-bold text-blue-600">
                           ¥{(advanceAmount || 0).toLocaleString()}
