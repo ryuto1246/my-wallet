@@ -10,13 +10,13 @@ import {
   uploadTransactionImageWithProgress,
   validateImageFile,
 } from '@/lib/firebase/storage';
-import { recognizeTransactionFromImage } from '@/lib/gemini/vision';
 import { detectDuplicate } from '@/lib/helpers/duplicate-detection';
 import type {
   ImageRecognitionResult,
   RecognizedTransaction,
   OCROptions,
 } from '@/types/image-recognition';
+import { buildPriorHints, rerankRecognition } from '@/lib/ai/personalization';
 
 interface UseImageRecognitionOptions {
   /** 重複チェックを行うか */
@@ -137,10 +137,40 @@ export function useImageRecognition(
             );
 
             // 2. 画像を認識
-            const recognizedTransaction = await recognizeTransactionFromImage(
-              file,
-              ocrOptions
-            );
+            // Build FormData and call API Route
+            const formData = new FormData();
+            formData.append('image', file);
+            if (Object.keys(ocrOptions).length > 0) {
+              formData.append('options', JSON.stringify(ocrOptions));
+            }
+            const res = await fetch('/api/ai/vision', {
+              method: 'POST',
+              body: formData,
+            });
+            if (res.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
+            if (!res.ok) throw new Error('画像から取引情報を認識できませんでした');
+            const recognizedTransaction: RecognizedTransaction = await res.json();
+            if (recognizedTransaction.date) {
+              recognizedTransaction.date = new Date(recognizedTransaction.date as unknown as string);
+            }
+
+            // 2.5 履歴ヒントで軽量リランク（LLMなし）
+            try {
+              const inputText = recognizedTransaction.merchantName || '';
+              if (user && inputText.trim()) {
+                const hints = await buildPriorHints({
+                  userId: user.id,
+                  inputText,
+                });
+                const [reranked] = rerankRecognition([recognizedTransaction], hints);
+                recognizedTransaction.suggestedCategory =
+                  reranked.suggestedCategory || recognizedTransaction.suggestedCategory;
+                recognizedTransaction.confidence =
+                  reranked.confidence ?? recognizedTransaction.confidence;
+              }
+            } catch (e) {
+              console.warn('rerankRecognition skipped:', e);
+            }
 
             // 3. 重複チェック
             let duplicateInfo;

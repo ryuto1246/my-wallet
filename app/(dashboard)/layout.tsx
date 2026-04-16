@@ -17,9 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/firebase/auth";
 import Link from "next/link";
-import { Menu, LayoutDashboard, List, LogOut, FileText } from "lucide-react";
-import { useState } from "react";
-import { ParentAdvanceInvoiceDialog } from "@/components/organisms";
+import { Menu, LayoutDashboard, List, LogOut, CreditCard, BarChart2, Bot } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -28,8 +26,6 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { loading, isAuthenticated, user } = useAuth();
-  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push("/login");
@@ -78,24 +74,21 @@ export default function DashboardLayout({
 
             {/* デスクトップ用ナビゲーション */}
             <nav className="hidden md:flex space-x-2 md:space-x-3">
-              <Link
-                href="/dashboard"
-                className="px-3 md:px-5 py-1.5 md:py-2.5 rounded-lg md:rounded-xl text-sm md:text-base text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass"
-              >
+              <Link href="/dashboard" className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-sm text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass">
                 ダッシュボード
               </Link>
-              <Link
-                href="/transactions"
-                className="px-3 md:px-5 py-1.5 md:py-2.5 rounded-lg md:rounded-xl text-sm md:text-base text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass"
-              >
+              <Link href="/transactions" className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-sm text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass">
                 取引一覧
               </Link>
-              <button
-                onClick={() => setInvoiceDialogOpen(true)}
-                className="px-3 md:px-5 py-1.5 md:py-2.5 rounded-lg md:rounded-xl text-sm md:text-base text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass"
-              >
-                請求書PDF
-              </button>
+              <Link href="/advances" className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-sm text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass">
+                債権管理
+              </Link>
+              <Link href="/recurring" className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-sm text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass">
+                固定費
+              </Link>
+              <Link href="/chat" className="px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-sm text-gray-800 hover:bg-white/60 font-semibold transition-all hover:shadow-glass">
+                AI分析
+              </Link>
             </nav>
           </div>
 
@@ -139,20 +132,28 @@ export default function DashboardLayout({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link
-                    href="/transactions"
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
+                  <Link href="/transactions" className="flex items-center gap-2 cursor-pointer">
                     <List className="h-4 w-4" />
                     <span>取引一覧</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setInvoiceDialogOpen(true)}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <FileText className="h-4 w-4" />
-                  <span>請求書PDF</span>
+                <DropdownMenuItem asChild>
+                  <Link href="/advances" className="flex items-center gap-2 cursor-pointer">
+                    <CreditCard className="h-4 w-4" />
+                    <span>債権管理</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/recurring" className="flex items-center gap-2 cursor-pointer">
+                    <BarChart2 className="h-4 w-4" />
+                    <span>固定費分析</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/chat" className="flex items-center gap-2 cursor-pointer">
+                    <Bot className="h-4 w-4" />
+                    <span>AI分析チャット</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -173,14 +174,6 @@ export default function DashboardLayout({
         {children}
       </main>
 
-      {/* 請求書ダイアログ */}
-      {user?.id && (
-        <ParentAdvanceInvoiceDialog
-          open={invoiceDialogOpen}
-          onOpenChange={setInvoiceDialogOpen}
-          userId={user.id}
-        />
-      )}
     </div>
   );
 }

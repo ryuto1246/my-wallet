@@ -7,11 +7,13 @@
  * 対応決済サービスの種類
  */
 export type PaymentService =
-  | 'olive' // 三井住友OLIVE
+  | 'olive' // 三井住友OLIVE（クレジットカード）
+  | 'smbc_bank' // 三井住友銀行
   | 'sony' // ソニー銀行
   | 'dpayment' // d払い
   | 'dcard' // dカード
   | 'paypay' // PayPay
+  | 'v_point_pay' // V-Point Pay
   | 'cash' // 現金（手入力）
   | 'unknown'; // 不明
 
@@ -50,6 +52,11 @@ export interface RecognizedTransaction {
   confidence: number;
   /** 生データ */
   rawData: RawRecognitionData;
+  /** 振替情報（振替取引の場合、画像から抽出） */
+  transfer?: {
+    from: string;
+    to: string;
+  };
   /** 認識された追加情報 */
   metadata?: {
     /** 取引ID（決済サービス側） */

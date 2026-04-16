@@ -86,7 +86,7 @@ export function calculateBalanceChartData(
 }
 
 /**
- * 特定日時点での各決済手段の残高を計算（立替除外）
+ * 特定日時点での各決済手段の残高を計算
  */
 function calculateBalancesAtDate(
   transactions: Transaction[],
@@ -135,15 +135,12 @@ function calculateBalancesAtDate(
             income += t.amount;
           }
         } else {
-          // 通常の取引（立替金回収は含む）
+          // 通常の取引（立替金回収は収入として含む）
           if (t.isIncome) {
             income += t.amount;
           } else {
-            // 支出の場合、立替分は除外
-            const actualAmount = t.advance && t.advance.personalAmount !== undefined
-              ? t.advance.personalAmount
-              : t.amount;
-            expense += actualAmount;
+            // 支出は立替分を含めた実際のキャッシュアウトを計上
+            expense += t.amount;
           }
         }
       });
@@ -173,15 +170,12 @@ function calculateBalancesAtDate(
             income += t.amount;
           }
         } else {
-          // 通常の取引（立替金回収は含む）
+          // 通常の取引（立替金回収は収入として含む）
           if (t.isIncome) {
             income += t.amount;
           } else {
-            // 支出の場合、立替分は除外
-            const actualAmount = t.advance && t.advance.personalAmount !== undefined
-              ? t.advance.personalAmount
-              : t.amount;
-            expense += actualAmount;
+            // 支出は立替分を含めた実際のキャッシュアウトを計上
+            expense += t.amount;
           }
         }
       });
@@ -202,5 +196,43 @@ export function getPaymentMethodsForChart() {
     label,
     color: color || '#6B7280',
   }));
+}
+
+/**
+ * 使途不明金（残高確認による修正の絶対値）月別データ
+ */
+export interface MonthlyUnidentifiedFundsPoint {
+  date: string;
+  dateKey: string;
+  amount: number;
+}
+
+/**
+ * 残高調整から月別の使途不明金（修正額の絶対値の合計）を計算
+ */
+export function calculateMonthlyUnidentifiedFunds(
+  adjustments: BalanceAdjustment[]
+): MonthlyUnidentifiedFundsPoint[] {
+  const now = new Date();
+  const startDate = startOfMonth(subMonths(now, 11));
+  const endDate = endOfMonth(now);
+  const intervals = eachMonthOfInterval({ start: startDate, end: endDate });
+
+  return intervals.map((monthStart) => {
+    const monthEnd = endOfMonth(monthStart);
+    const monthAdjustments = adjustments.filter((adj) => {
+      const d = new Date(adj.date);
+      return d >= monthStart && d <= monthEnd;
+    });
+    const amount = monthAdjustments.reduce(
+      (sum, adj) => sum + Math.abs(adj.difference),
+      0
+    );
+    return {
+      date: format(monthStart, 'yyyy/M', { locale: ja }),
+      dateKey: format(monthStart, 'yyyy-MM-dd'),
+      amount,
+    };
+  });
 }
 

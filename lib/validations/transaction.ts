@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 // 立替情報のスキーマ
 export const advanceInfoSchema = z.object({
-  type: z.enum(['friend', 'parent']).nullable(),
+  type: z.string().nullable(),  // 自由記述の立替相手名（後方互換: 'friend', 'parent' も有効）
   totalAmount: z.number().positive(),
   advanceAmount: z.number().min(0),
   personalAmount: z.number().min(0),
@@ -69,6 +69,32 @@ export const transactionFormSchema = z.object({
   imageUrl: z.string().optional(),
   // AI情報（一括登録時など）
   ai: z.any().optional(),
-});
+})
+// 収入時は立替禁止（advance未設定・hasAdvance=false）
+.refine(
+  (data) => {
+    if (data.isIncome) {
+      return !data.hasAdvance && data.advance === undefined;
+    }
+    return true;
+  },
+  {
+    message: '収入では立替（援助/友達）は設定できません',
+    path: ['advance'],
+  }
+)
+// 振替時はtransfer必須
+.refine(
+  (data) => {
+    if (data.isTransfer) {
+      return !!data.transfer && !!data.transfer.from && !!data.transfer.to && data.transfer.from !== data.transfer.to;
+    }
+    return true;
+  },
+  {
+    message: '振替では振替元と振替先を入力してください（異なる口座）',
+    path: ['transfer'],
+  }
+);
 
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;

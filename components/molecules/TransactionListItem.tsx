@@ -22,6 +22,7 @@ import {
 import { Trash2, Pencil } from "lucide-react";
 import { getPaymentMethodLabel } from "@/constants/paymentMethods";
 import { AdvanceInfo } from "@/types/advance";
+
 import { PaymentMethodValue, TransferInfo } from "@/types/transaction";
 
 interface TransactionListItemProps {
@@ -61,11 +62,13 @@ export function TransactionListItem({
 }: TransactionListItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isSwipeOpen, setIsSwipeOpen] = useState(false);
   const [startX, setStartX] = useState(0);
   const [currentX, setCurrentX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
   const isAdvanceRecovery = isIncome && categorySub === "立替金回収";
   const isTransfer = !!transfer;
 
@@ -73,12 +76,13 @@ export function TransactionListItem({
     if (!onDelete) return;
 
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       await onDelete(id);
       setDeleteDialogOpen(false);
     } catch (error) {
       console.error("削除エラー:", error);
-      alert("削除に失敗しました");
+      setDeleteError("削除に失敗しました。もう一度お試しください。");
     } finally {
       setIsDeleting(false);
     }
@@ -256,13 +260,11 @@ export function TransactionListItem({
                 {advance && (
                   <Badge
                     variant="outline"
-                    className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
-                      advance.type === "friend"
-                        ? "text-orange-600 border-orange-600 bg-orange-50"
-                        : "text-purple-600 border-purple-600 bg-purple-50"
-                    }`}
+                    className="rounded-full px-1.5 py-0.5 text-xs font-semibold text-orange-600 border-orange-600 bg-orange-50"
                   >
-                    {advance.type === "friend" ? "友人立替" : "親負担"}
+                    {advance.type === "friend" ? "友人立替"
+                      : advance.type === "parent" ? "父"
+                      : advance.type || "立替"}
                   </Badge>
                 )}
               </div>
@@ -371,7 +373,7 @@ export function TransactionListItem({
       </div>
 
       {/* 削除確認ダイアログ */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) setDeleteError(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>取引を削除しますか？</DialogTitle>
@@ -379,6 +381,11 @@ export function TransactionListItem({
               この操作は取り消せません。本当にこの取引を削除してもよろしいですか？
             </DialogDescription>
           </DialogHeader>
+          {deleteError && (
+            <div className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2">
+              {deleteError}
+            </div>
+          )}
           <div className="bg-gray-50 rounded-xl p-4 my-2">
             <div className="text-sm text-gray-600 mb-2">
               {format(date, "yyyy年M月d日(E)", { locale: ja })}

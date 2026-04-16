@@ -1,10 +1,10 @@
 /**
- * 親立替請求書プレビューダイアログ
+ * 親立替請求書ダイアログ（LINE貼り付けテキスト生成）
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,15 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Loader2 } from "lucide-react";
+import { Copy, Check, Loader2 } from "lucide-react";
 import {
   filterParentAdvanceTransactions,
-  generateParentAdvanceInvoicePDF,
+  generateParentAdvanceLineText,
 } from "@/lib/helpers";
 import { getAllTransactions } from "@/lib/firebase/transactions";
-import { Transaction } from "@/types/transaction";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
 
 interface ParentAdvanceInvoiceDialogProps {
   open: boolean;
@@ -43,6 +40,7 @@ export function ParentAdvanceInvoiceDialog({
   userId,
 }: ParentAdvanceInvoiceDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(
     new Date().getFullYear()
   );
@@ -60,27 +58,15 @@ export function ParentAdvanceInvoiceDialog({
   >([]);
 
   const monthNames = [
-    "1月",
-    "2月",
-    "3月",
-    "4月",
-    "5月",
-    "6月",
-    "7月",
-    "8月",
-    "9月",
-    "10月",
-    "11月",
-    "12月",
+    "1月", "2月", "3月", "4月", "5月", "6月",
+    "7月", "8月", "9月", "10月", "11月", "12月",
   ];
   const monthName = monthNames[selectedMonth];
 
-  // 年と月の選択肢を生成
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 3 }, (_, i) => currentYear - 1 + i);
   const months = Array.from({ length: 12 }, (_, i) => i);
 
-  // ダイアログが開いたときに取引を取得
   useEffect(() => {
     if (open && userId) {
       loadTransactions();
@@ -90,31 +76,15 @@ export function ParentAdvanceInvoiceDialog({
   const loadTransactions = async () => {
     setLoading(true);
     try {
-      // 指定月の開始日と終了日を計算
       const startDate = new Date(selectedYear, selectedMonth, 1);
-      const endDate = new Date(
-        selectedYear,
-        selectedMonth + 1,
-        0,
-        23,
-        59,
-        59,
-        999
-      );
+      const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
 
-      // 指定月の全取引を取得
-      const monthlyTransactions = await getAllTransactions(userId, {
-        startDate,
-        endDate,
-      });
-
-      // 親立替取引を抽出
+      const monthlyTransactions = await getAllTransactions(userId, { startDate, endDate });
       const parentAdvanceTransactions = filterParentAdvanceTransactions(
         monthlyTransactions,
         selectedYear,
         selectedMonth
       );
-
       setTransactions(parentAdvanceTransactions);
     } catch (error) {
       console.error("取引取得エラー:", error);
@@ -123,24 +93,24 @@ export function ParentAdvanceInvoiceDialog({
     }
   };
 
-  const handleGeneratePDF = async () => {
-    if (transactions.length === 0) return;
+  const lineText = useMemo(
+    () =>
+      transactions.length > 0
+        ? generateParentAdvanceLineText(transactions, selectedYear, selectedMonth)
+        : "",
+    [transactions, selectedYear, selectedMonth]
+  );
+
+  const handleCopyToLine = async () => {
+    if (!lineText) return;
     try {
-      await generateParentAdvanceInvoicePDF(
-        transactions,
-        selectedYear,
-        selectedMonth
-      );
+      await navigator.clipboard.writeText(lineText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error("PDF生成エラー:", error);
-      alert("PDFの生成に失敗しました。");
+      console.error("コピーエラー:", error);
     }
   };
-
-  const totalAmount = transactions.reduce(
-    (sum, tx) => sum + tx.advanceAmount,
-    0
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,22 +119,15 @@ export function ParentAdvanceInvoiceDialog({
           <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
             親立替請求書
           </DialogTitle>
-          <DialogDescription className="text-base">
-            親立替分の内訳と合計金額を確認できます
-          </DialogDescription>
         </DialogHeader>
 
         {/* 年月選択 */}
         <div className="flex items-center gap-3">
           <div className="flex-1">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              年
-            </label>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">年</label>
             <Select
               value={selectedYear.toString()}
-              onValueChange={(value) => {
-                setSelectedYear(parseInt(value));
-              }}
+              onValueChange={(value) => setSelectedYear(parseInt(value))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -179,14 +142,10 @@ export function ParentAdvanceInvoiceDialog({
             </Select>
           </div>
           <div className="flex-1">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">
-              月
-            </label>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">月</label>
             <Select
               value={selectedMonth.toString()}
-              onValueChange={(value) => {
-                setSelectedMonth(parseInt(value));
-              }}
+              onValueChange={(value) => setSelectedMonth(parseInt(value))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -203,20 +162,6 @@ export function ParentAdvanceInvoiceDialog({
         </div>
 
         <div className="space-y-4">
-          {/* 感謝メッセージ */}
-          <div className="bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 rounded-xl p-4 border-2 border-orange-200/50">
-            <p className="text-sm text-gray-700">
-              いつもお世話になっております。
-            </p>
-            <p className="text-sm text-gray-700 mt-1">
-              今月分の親立替費用のご請求です。
-            </p>
-            <p className="text-sm text-gray-700 mt-1">
-              ご確認のほど、よろしくお願いいたします。
-            </p>
-          </div>
-
-          {/* プレビューテーブル */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
@@ -227,87 +172,9 @@ export function ParentAdvanceInvoiceDialog({
               {selectedYear}年{selectedMonth + 1}月の親立替取引がありません。
             </div>
           ) : (
-            <>
-              <div className="rounded-xl border-2 border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-3">
-                  <h3 className="text-lg font-bold">
-                    {selectedYear}年{monthName} 親立替請求書
-                  </h3>
-                </div>
-                <table className="w-full">
-                  <thead className="bg-gradient-to-r from-orange-400 to-red-400 text-white">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">
-                        No.
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">
-                        日付
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">
-                        内容
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold">
-                        金額
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">
-                        備考
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {transactions.map((tx, index) => (
-                      <tr
-                        key={index}
-                        className="hover:bg-orange-50/50 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm text-gray-700 text-center">
-                          {index + 1}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          {format(tx.date, "M/d", { locale: ja })}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">
-                          {tx.description}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 font-semibold text-right">
-                          ¥{tx.advanceAmount.toLocaleString("ja-JP")}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {tx.memo || "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gradient-to-r from-orange-100 to-red-100">
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="px-4 py-4 text-right text-sm font-bold text-gray-900"
-                      >
-                        合計金額
-                      </td>
-                      <td className="px-4 py-4 text-right text-lg font-bold text-orange-700">
-                        ¥{totalAmount.toLocaleString("ja-JP")}
-                      </td>
-                      <td className="px-4 py-4"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {/* 感謝メッセージ（下部） */}
-              <div className="bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 rounded-xl p-4 border-2 border-orange-200/50">
-                <p className="text-sm text-gray-700">
-                  いつもご支援いただき、誠にありがとうございます。
-                </p>
-                <p className="text-sm text-gray-700 mt-1">
-                  今後とも変わらぬご理解とご協力をいただけますよう、
-                </p>
-                <p className="text-sm text-gray-700 mt-1">
-                  お願い申し上げます。
-                </p>
-              </div>
-            </>
+            <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap break-words font-sans leading-relaxed">
+              {lineText}
+            </pre>
           )}
         </div>
 
@@ -321,11 +188,20 @@ export function ParentAdvanceInvoiceDialog({
           </Button>
           {transactions.length > 0 && (
             <Button
-              onClick={handleGeneratePDF}
+              onClick={handleCopyToLine}
               className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
             >
-              <Download className="mr-2 h-4 w-4" />
-              PDFをダウンロード
+              {copied ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  コピーしました！
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-2 h-4 w-4" />
+                  LINEにコピー
+                </>
+              )}
             </Button>
           )}
         </DialogFooter>
@@ -333,4 +209,3 @@ export function ParentAdvanceInvoiceDialog({
     </Dialog>
   );
 }
-

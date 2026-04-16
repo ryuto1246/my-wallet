@@ -7,7 +7,7 @@
 import { Sparkles, AlertCircle, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getConfidenceLevel } from "@/lib/gemini";
+import { getConfidenceLevel } from "@/lib/claude/suggestion-types";
 
 interface AISuggestionBadgeProps {
   confidence: number;
@@ -123,6 +123,8 @@ export function AISuggestionBadge({
     </div>
   );
 }
+
+
 
 
 

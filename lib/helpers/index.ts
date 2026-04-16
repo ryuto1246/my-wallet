@@ -11,6 +11,7 @@ export * from "./duplicate-detection";
 export * from "./time";
 export * from "./payment";
 export * from "./pdf";
+export * from "./recurring";
 
 /**
  * 期間タイプ定義

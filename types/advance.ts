@@ -2,27 +2,28 @@
  * 立替処理関連の型定義
  */
 
-export const AdvanceType = {
-  FRIEND: 'friend',  // 友人立替（友人から後で回収する）
-  PARENT: 'parent',  // 親負担（親から後で回収する）
+export const AdvanceStatus = {
+  PENDING: 'pending',       // 未回収（保留中）
+  RECOVERED: 'recovered',   // 回収済み
+  ABANDONED: 'abandoned',   // 放棄（回収を諦めた）
 } as const;
 
-export type AdvanceTypeValue = typeof AdvanceType[keyof typeof AdvanceType];
+export type AdvanceStatusValue = typeof AdvanceStatus[keyof typeof AdvanceStatus];
 
 export interface AdvanceInfo {
-  type: AdvanceTypeValue | null;
+  type: string | null;        // 立替相手名（自由記述、例: "田中さん", "親", backward compat: "friend", "parent"）
   totalAmount: number;        // 支払い総額
   advanceAmount: number;      // 立替金額
   personalAmount: number;     // 自分の負担額
-  isRecovered: boolean;       // 回収済みかどうか（friendの場合のみ）
-  memo?: string;              // 立替の詳細メモ（例：「Aさん・Bさん・Cさん分」）
+  status: AdvanceStatusValue; // 回収ステータス（新フィールド）
+  isRecovered: boolean;       // 後方互換性のため残す（status === 'recovered' と同義）
+  memo?: string;              // 立替の詳細メモ
 }
 
 export interface AdvanceBalance {
   userId: string;
-  totalAdvanced: number;      // 総立替金額
-  totalRecovered: number;     // 総回収金額
-  remaining: number;          // 未回収残高
+  totalAdvanced: number;
+  totalRecovered: number;
+  remaining: number;
   updatedAt: Date;
 }
-

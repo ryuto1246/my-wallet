@@ -194,11 +194,15 @@ export const useTransactions = (filter?: TransactionFilter) => {
         description: data.description,
         paymentMethod: data.paymentMethod,
         isIncome: data.isIncome,
+        // 振替を即時反映（to 側の合計に反映されるよう transfer を保持）
+        transactionType: data.transfer ? 'transfer' : (data.isIncome ? 'income' : 'expense'),
+        transfer: data.transfer,
         advance: data.advance ? {
           type: data.advance.type || null,
           totalAmount: data.advance.totalAmount || 0,
           advanceAmount: data.advance.advanceAmount || 0,
           personalAmount: data.advance.personalAmount || 0,
+          status: data.advance.status || 'pending',
           isRecovered: data.advance.isRecovered || false,
         } : undefined,
         calendar: data.calendarEventId ? { eventId: data.calendarEventId, eventName: '', eventType: 'during' as const } : undefined,
@@ -223,6 +227,9 @@ export const useTransactions = (filter?: TransactionFilter) => {
         description: data.description,
         paymentMethod: data.paymentMethod,
         isIncome: data.isIncome,
+        // 更新時も振替情報をローカルストアに反映
+        transactionType: data.transfer ? 'transfer' : (typeof data.isIncome === 'boolean' ? (data.isIncome ? 'income' : 'expense') : undefined),
+        transfer: data.transfer,
         updatedAt: new Date()
       });
     } catch (error) {

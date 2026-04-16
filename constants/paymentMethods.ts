@@ -43,6 +43,11 @@ export const PAYMENT_METHODS: PaymentMethodInfo[] = [
     color: '#DC2626', // PayPayレッド - ブランドカラーに近い
   },
   {
+    value: PaymentMethod.V_POINT_PAY,
+    label: 'V-Point Pay',
+    color: '#1D4ED8', // ブルー - V-Pointブランドカラー
+  },
+  {
     value: PaymentMethod.CASH,
     label: '現金',
     color: '#8B5CF6', // パープル - より見やすく

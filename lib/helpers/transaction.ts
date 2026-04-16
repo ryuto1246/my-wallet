@@ -2,7 +2,7 @@
  * トランザクション関連のヘルパー関数
  */
 
-import { Transaction } from "@/types/transaction";
+import { Transaction, TransactionInput, PaymentMethodValue } from "@/types/transaction";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import type { BalanceAdjustment } from "@/types";
 
@@ -78,7 +78,6 @@ export function convertAdjustmentToTransaction(
   adjustment: BalanceAdjustment
 ): Transaction {
   const isIncome = adjustment.difference > 0;
-  console.log('🔄 Converting adjustment to transaction:', adjustment);
   return {
     id: `adjustment-${adjustment.id}`,
     userId: adjustment.userId,
@@ -172,6 +171,69 @@ export function filterTransactionsByType(
 }
 
 /**
+ * TransactionInput を TransactionFormValues に変換
+ * 一括登録など、複数ページで同じ変換が必要な場合に使用する
+ */
+export function convertTransactionInputToFormValues(
+  input: TransactionInput
+): TransactionFormValues {
+  return {
+    date: input.date,
+    amount: input.amount,
+    categoryMain: input.category.main,
+    categorySub: input.category.sub,
+    description: input.description,
+    paymentMethod: input.paymentMethod,
+    isIncome: input.isIncome,
+    isTransfer: input.isTransfer ?? false,
+    hasAdvance: !!input.advance,
+    transfer: input.transfer,
+    advance: input.advance
+      ? {
+          type: input.advance.type || null,
+          totalAmount: input.advance.totalAmount || input.amount,
+          advanceAmount: input.advance.advanceAmount || 0,
+          personalAmount: input.advance.personalAmount || input.amount,
+          memo: input.advance.memo || "",
+        }
+      : undefined,
+    memo: input.memo || "",
+    imageUrl: input.imageUrl,
+    ai: input.ai,
+    originalMerchantName: input.ai?.originalMerchantName,
+  };
+}
+
+/**
+ * 振替フォームの入力値を TransactionFormValues に変換
+ */
+export function buildTransferFormValues(data: {
+  date: Date;
+  amount: number;
+  from: string;
+  to: string;
+  description: string;
+  memo?: string;
+}): TransactionFormValues {
+  return {
+    date: data.date,
+    amount: data.amount,
+    categoryMain: "振替",
+    categorySub: "口座間振替",
+    description: data.description,
+    paymentMethod: data.from as PaymentMethodValue,
+    isIncome: false,
+    isTransfer: true,
+    hasAdvance: false,
+    transfer: {
+      from: data.from as PaymentMethodValue,
+      to: data.to as PaymentMethodValue,
+    },
+    memo: data.memo || "",
+  };
+}
+
+/**
  * フォームバリデーションデータをトランザクション作成データに変換
  */
 export function transformFormDataToTransaction(
@@ -182,12 +244,12 @@ export function transformFormDataToTransaction(
     amount: number;
     category: { main: string; sub: string };
     description: string;
-    paymentMethod: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
+    paymentMethod: PaymentMethodValue;
     isIncome: boolean;
     transactionType?: "expense" | "income" | "transfer";
     transfer?: {
-      from: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
-      to: "olive" | "sony_bank" | "d_payment" | "d_card" | "paypay" | "cash" | "other";
+      from: PaymentMethodValue;
+      to: PaymentMethodValue;
     };
     memo?: string;
     imageUrl?: string;
@@ -210,14 +272,7 @@ export function transformFormDataToTransaction(
       sub: data.categorySub,
     },
     description: data.description,
-    paymentMethod: data.paymentMethod as
-      | "olive"
-      | "sony_bank"
-      | "d_payment"
-      | "d_card"
-      | "paypay"
-      | "cash"
-      | "other",
+    paymentMethod: data.paymentMethod as PaymentMethodValue,
     isIncome: data.isIncome,
   };
 
@@ -225,22 +280,8 @@ export function transformFormDataToTransaction(
   if (data.isTransfer && data.transfer) {
     baseTransaction.transactionType = 'transfer';
     baseTransaction.transfer = {
-      from: data.transfer.from as
-        | "olive"
-        | "sony_bank"
-        | "d_payment"
-        | "d_card"
-        | "paypay"
-        | "cash"
-        | "other",
-      to: data.transfer.to as
-        | "olive"
-        | "sony_bank"
-        | "d_payment"
-        | "d_card"
-        | "paypay"
-        | "cash"
-        | "other",
+      from: data.transfer.from as PaymentMethodValue,
+      to: data.transfer.to as PaymentMethodValue,
     };
   } else {
     baseTransaction.transactionType = data.isIncome ? 'income' : 'expense';
@@ -308,10 +349,11 @@ export function transformFormDataToTransaction(
   // 立替情報がある場合は追加
   if (data.hasAdvance && data.advance) {
     const advanceInfo: {
-      type: 'friend' | 'parent' | null;
+      type: string | null;
       totalAmount: number;
       advanceAmount: number;
       personalAmount: number;
+      status: 'pending' | 'recovered' | 'abandoned';
       isRecovered: boolean;
       memo?: string;
     } = {
@@ -319,6 +361,7 @@ export function transformFormDataToTransaction(
       totalAmount: data.advance.totalAmount,
       advanceAmount: data.advance.advanceAmount,
       personalAmount: data.advance.personalAmount,
+      status: 'pending',
       isRecovered: false, // 新規作成時は未回収
     };
 
@@ -457,12 +500,6 @@ export function calculatePaymentMethodBalances(
   adjustments?: BalanceAdjustment[],
   asOfDate?: Date
 ): PaymentMethodBalance[] {
-  console.log('💰 calculatePaymentMethodBalances called:', {
-    transactionsCount: transactions.length,
-    adjustmentsCount: adjustments?.length || 0,
-    asOfDate: asOfDate?.toISOString(),
-  });
-
   // 指定日がある場合、その日以前のトランザクションと調整のみを使用
   const filteredTransactions = asOfDate
     ? transactions.filter((t) => new Date(t.date) <= asOfDate)
@@ -486,7 +523,6 @@ export function calculatePaymentMethodBalances(
         latestAdjustmentMap.set(adj.paymentMethod, adj);
       }
     });
-    console.log('📊 Latest adjustments map:', Array.from(latestAdjustmentMap.entries()));
   }
 
   // 各決済手段の残高を計算（振替も考慮してマップを初期化）

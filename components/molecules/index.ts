@@ -12,5 +12,7 @@ export { ImagePreview } from "./ImagePreview";
 export { PaymentMethodBalanceCard } from "./PaymentMethodBalanceCard";
 export type { PaymentMethodBalance } from "./PaymentMethodBalanceCard";
 export { TransactionAmountInput } from "./TransactionAmountInput";
+export { TransferFields } from "./TransferFields";
 export { RecognizedTransactionItem } from "./RecognizedTransactionItem";
+export { ChatMessage } from "./ChatMessage";
 

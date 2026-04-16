@@ -4,8 +4,9 @@
 
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useTransactions, useBalanceAdjustments, useAuth } from "@/hooks";
+import { PAYMENT_METHODS } from "@/constants/paymentMethods";
 import {
   deleteBalanceAdjustment,
   createBalanceAdjustment,
@@ -21,20 +22,31 @@ import {
   TransferFormDialog,
   BalanceAdjustmentDialog,
 } from "@/components/organisms";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 import {
   transformFormDataToTransaction,
+  convertTransactionInputToFormValues,
+  buildTransferFormValues,
   mergeTransactionsAndAdjustments,
   calculatePaymentMethodBalances,
 } from "@/lib/helpers";
 import type {
   TransactionInput,
   PaymentMethodValue,
-  Transaction,
 } from "@/types/transaction";
 
 export default function TransactionsPage() {
   const { user } = useAuth();
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<
+    PaymentMethodValue | ""
+  >("");
   const [formOpen, setFormOpen] = useState(false);
   const [batchImageDialogOpen, setBatchImageDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
@@ -46,6 +58,17 @@ export default function TransactionsPage() {
     null
   );
   const [adjustmentDate, setAdjustmentDate] = useState<Date>(new Date());
+  const { adjustments, refetch: refetchAdjustments } = useBalanceAdjustments();
+
+  // 取引手段フィルター
+  const filter = useMemo(
+    () =>
+      paymentMethodFilter
+        ? { paymentMethod: paymentMethodFilter }
+        : {},
+    [paymentMethodFilter]
+  );
+
   const {
     transactions,
     loading,
@@ -57,8 +80,8 @@ export default function TransactionsPage() {
     createTransaction,
     updateTransaction,
     deleteTransaction,
-  } = useTransactions();
-  const { adjustments, refetch: refetchAdjustments } = useBalanceAdjustments();
+  } = useTransactions(filter);
+
   const {
     setCurrentPage,
     lastDoc,
@@ -77,7 +100,7 @@ export default function TransactionsPage() {
   const savedLastDocRef = useRef<typeof lastDoc>(null);
   const savedPageHistoryRef = useRef<typeof pageHistory>([null]);
   const isDialogOpenRef = useRef<boolean>(false);
-  const shouldRestorePageRef = useRef<boolean>(false);
+  const [shouldRestorePage, setShouldRestorePage] = useState(false);
 
   // ダイアログの開閉時にスクロール位置とページネーション状態を保存・復元
   useEffect(() => {
@@ -93,12 +116,11 @@ export default function TransactionsPage() {
       savedPageRef.current = currentPage;
       savedLastDocRef.current = lastDoc;
       savedPageHistoryRef.current = [...pageHistory];
-      shouldRestorePageRef.current = false;
     }
 
     // ダイアログが閉じた時（true → false）に復元フラグを設定
     if (!isAnyDialogOpen && isDialogOpenRef.current) {
-      shouldRestorePageRef.current = true;
+      setShouldRestorePage(true);
     }
 
     isDialogOpenRef.current = isAnyDialogOpen;
@@ -113,8 +135,19 @@ export default function TransactionsPage() {
   ]);
 
   // ページとスクロール位置を復元
+  const restoreScrollPosition = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (scrollPositionRef.current > 0) {
+          window.scrollTo({ top: scrollPositionRef.current, behavior: "auto" });
+        }
+        setShouldRestorePage(false);
+      });
+    });
+  }, []);
+
   useEffect(() => {
-    if (!shouldRestorePageRef.current || loading || !user) return;
+    if (!shouldRestorePage || loading || !user) return;
 
     const savedPage = savedPageRef.current;
     const savedLastDoc = savedLastDocRef.current;
@@ -125,41 +158,26 @@ export default function TransactionsPage() {
       const restorePage = async () => {
         setLoading(true);
         try {
-          // 保存したページの開始位置を取得
-          // savedPage > 1の場合、pageHistory[savedPage - 2]が開始位置
+          // savedPage > 1 の場合、pageHistory[savedPage - 2] が開始位置
           const startDoc =
             savedPage > 1
               ? savedPageHistory[savedPage - 2] || undefined
               : undefined;
 
-          // 保存したページのデータを取得
           const {
             transactions: restoredTransactions,
             lastDoc: restoredLastDoc,
           } = await getTransactions(user.id, currentFilter, 20, startDoc);
 
-          // ページ状態とデータを復元
           setTransactions(restoredTransactions);
           setLastDoc(restoredLastDoc);
           setPageHistory(savedPageHistory);
           setCurrentPage(savedPage);
           setHasMore(restoredTransactions.length === 20);
-
-          // スクロール位置を復元
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              if (scrollPositionRef.current > 0) {
-                window.scrollTo({
-                  top: scrollPositionRef.current,
-                  behavior: "auto",
-                });
-              }
-              shouldRestorePageRef.current = false;
-            });
-          });
+          restoreScrollPosition();
         } catch (error) {
           console.error("ページ復元エラー:", error);
-          shouldRestorePageRef.current = false;
+          setShouldRestorePage(false);
         } finally {
           setLoading(false);
         }
@@ -167,20 +185,10 @@ export default function TransactionsPage() {
 
       restorePage();
     } else {
-      // ページが変わっていない場合、スクロール位置のみ復元
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (scrollPositionRef.current > 0) {
-            window.scrollTo({
-              top: scrollPositionRef.current,
-              behavior: "auto",
-            });
-          }
-          shouldRestorePageRef.current = false;
-        });
-      });
+      restoreScrollPosition();
     }
   }, [
+    shouldRestorePage,
     loading,
     currentPage,
     user,
@@ -191,18 +199,8 @@ export default function TransactionsPage() {
     setTransactions,
     setLoading,
     setHasMore,
+    restoreScrollPosition,
   ]);
-
-  // 取引と残高調整を統合
-  // 前回のキーと結果を保存して、内容が変わったときだけ再計算する
-  const prevTransactionsKeyRef = useRef<string>("");
-  const prevAdjustmentsKeyRef = useRef<string>("");
-  const prevResultRef = useRef<Transaction[]>([]);
-
-  const transactionsKey = transactions.map((t) => t.id).join(",");
-  const adjustmentsKey = adjustments
-    .map((a) => `${a.id}:${a.updatedAt?.getTime() || a.createdAt.getTime()}`)
-    .join(",");
 
   // 現在のページの取引の日付範囲を計算
   const dateRange = useMemo(() => {
@@ -219,47 +217,32 @@ export default function TransactionsPage() {
     return { startDate: minDate, endDate: maxDate };
   }, [transactions]);
 
-  const allTransactions = useMemo(() => {
-    // 内容が変わっていない場合は前回の結果を返す
-    if (
-      prevTransactionsKeyRef.current === transactionsKey &&
-      prevAdjustmentsKeyRef.current === adjustmentsKey
-    ) {
-      return prevResultRef.current;
-    }
+  // フィルターが有効な場合、残高調整も同じ支払い手段で絞り込む
+  const adjustmentsForDisplay = useMemo(
+    () =>
+      paymentMethodFilter
+        ? adjustments.filter((a) => a.paymentMethod === paymentMethodFilter)
+        : adjustments,
+    [adjustments, paymentMethodFilter]
+  );
 
-    // 内容が変わった場合のみ再計算
-    // 現在のページの取引の日付範囲に該当する残高調整のみを統合
-    const result = mergeTransactionsAndAdjustments(
-      transactions,
-      adjustments,
-      dateRange
-    );
-    prevTransactionsKeyRef.current = transactionsKey;
-    prevAdjustmentsKeyRef.current = adjustmentsKey;
-    prevResultRef.current = result;
-    return result;
-  }, [transactions, adjustments, transactionsKey, adjustmentsKey, dateRange]);
+  // 取引と残高調整を統合（現在ページの日付範囲に該当する調整のみ）
+  const allTransactions = useMemo(
+    () => mergeTransactionsAndAdjustments(transactions, adjustmentsForDisplay, dateRange),
+    [transactions, adjustmentsForDisplay, dateRange]
+  );
 
   const handleSubmit = async (data: TransactionFormValues) => {
-    console.log("🟡 TransactionsPage handleSubmit 開始:", data);
     try {
       const transactionData = transformFormDataToTransaction(data);
-      console.log("📦 変換後の取引データ:", transactionData);
       if (editingTransactionId) {
-        // 編集モード
-        console.log("✏️ 編集モード: ID =", editingTransactionId);
         await updateTransaction(editingTransactionId, transactionData);
-        console.log("✅ 更新完了");
         setEditingTransactionId(null);
       } else {
-        // 新規作成モード
-        console.log("➕ 新規作成モード");
         await createTransaction(transactionData);
-        console.log("✅ 作成完了");
       }
     } catch (error) {
-      console.error("❌ トランザクション作成/更新エラー:", error);
+      console.error("トランザクション作成/更新エラー:", error);
       throw error;
     }
   };
@@ -267,33 +250,10 @@ export default function TransactionsPage() {
   // 一括登録
   const handleBatchSubmit = async (transactionsData: TransactionInput[]) => {
     try {
-      // 各トランザクションを順次登録
       for (const data of transactionsData) {
-        // TransactionInputをTransactionFormDataに変換
-        const formData: TransactionFormValues = {
-          date: data.date,
-          amount: data.amount,
-          categoryMain: data.category.main,
-          categorySub: data.category.sub,
-          description: data.description,
-          paymentMethod: data.paymentMethod,
-          isIncome: data.isIncome,
-          isTransfer: false,
-          hasAdvance: !!data.advance,
-          advance: data.advance
-            ? {
-                type: data.advance.type || null,
-                totalAmount: data.advance.totalAmount || data.amount,
-                advanceAmount: data.advance.advanceAmount || 0,
-                personalAmount: data.advance.personalAmount || data.amount,
-                memo: data.advance.memo || "",
-              }
-            : undefined,
-          memo: data.memo || "",
-          // 元の店舗名を保持（画像認識時）
-          originalMerchantName: data.ai?.originalMerchantName,
-        };
-        const transactionData = transformFormDataToTransaction(formData);
+        const transactionData = transformFormDataToTransaction(
+          convertTransactionInputToFormValues(data)
+        );
         await createTransaction(transactionData);
       }
     } catch (error) {
@@ -389,30 +349,13 @@ export default function TransactionsPage() {
     memo?: string;
   }) => {
     try {
-      const formData: TransactionFormValues = {
-        date: data.date,
-        amount: data.amount,
-        categoryMain: "振替",
-        categorySub: "口座間振替",
-        description: data.description,
-        paymentMethod: data.from, // 振替元を支払い方法とする
-        isIncome: false,
-        isTransfer: true,
-        hasAdvance: false,
-        transfer: {
-          from: data.from as PaymentMethodValue,
-          to: data.to as PaymentMethodValue,
-        },
-        memo: data.memo || "",
-      };
-      const transactionData = transformFormDataToTransaction(formData);
-
+      const transactionData = transformFormDataToTransaction(
+        buildTransferFormValues(data)
+      );
       if (editingTransactionId) {
-        // 編集モード
         await updateTransaction(editingTransactionId, transactionData);
         setEditingTransactionId(null);
       } else {
-        // 新規作成モード
         await createTransaction(transactionData);
       }
     } catch (error) {
@@ -516,7 +459,6 @@ export default function TransactionsPage() {
       }
     : undefined;
 
-  // 残高調整のデフォルト値
   const editingAdjustment = editingAdjustmentId
     ? adjustments.find((a) => a.id === editingAdjustmentId)
     : null;
@@ -578,6 +520,31 @@ export default function TransactionsPage() {
         showTransferButton
         onTransferClick={() => setTransferDialogOpen(true)}
       />
+
+      {/* 取引手段フィルター */}
+      <div className="mb-4 max-w-4xl mx-auto">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          取引手段
+        </label>
+        <Select
+          value={paymentMethodFilter || "all"}
+          onValueChange={(value) =>
+            setPaymentMethodFilter(value === "all" ? "" : (value as PaymentMethodValue))
+          }
+        >
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="取引手段でフィルター" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">すべて</SelectItem>
+            {PAYMENT_METHODS.map((pm) => (
+              <SelectItem key={pm.value} value={pm.value}>
+                {pm.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <TransactionList
         title="最近の取引"

@@ -34,6 +34,7 @@ describe('balance-chart helpers', () => {
       totalAmount: amount,
       personalAmount: advance.personalAmount,
       advanceAmount: advance.advanceAmount,
+      status: 'pending' as const,
       isRecovered: false,
     } : undefined,
     createdAt: new Date(),
@@ -108,11 +109,11 @@ describe('balance-chart helpers', () => {
 
       // 最新の残高を確認
       const latestData = chartData[chartData.length - 1];
-      // 立替分が除外され、自己負担分のみ計算されていること
+      // 立替支出はキャッシュアウト全額（10000円）として計上されること
       // マイナスなので _negative プロパティに値が入る
-      expect(latestData[`${PaymentMethod.CASH}_negative`]).toBe(-3000);
+      expect(latestData[`${PaymentMethod.CASH}_negative`]).toBe(-10000);
       expect(latestData[`${PaymentMethod.CASH}_positive`]).toBe(0);
-      expect(latestData.totalAssets).toBe(-3000);
+      expect(latestData.totalAssets).toBe(-10000);
     });
 
     it('残高調整を考慮して計算すること', () => {

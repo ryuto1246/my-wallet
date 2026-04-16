@@ -26,7 +26,6 @@ import { ImageUploadZone } from "@/components/organisms/ImageUploadZone";
 import { TransactionFormNew } from "@/components/organisms";
 import { RecognizedTransactionItem } from "@/components/molecules";
 import { useAuth, useTransactions } from "@/hooks";
-import { recognizeBatchTransactionsFromImage } from "@/lib/gemini/batch-vision";
 import { uploadTransactionImage } from "@/lib/firebase/storage";
 import { batchDetectDuplicates } from "@/lib/helpers/duplicate-detection";
 import {
@@ -37,7 +36,7 @@ import type {
   RecognizedTransaction,
   PaymentService,
 } from "@/types/image-recognition";
-import type { TransactionInput } from "@/types/transaction";
+import type { TransactionInput, TransferInfo } from "@/types/transaction";
 import type { AdvanceInfo } from "@/types/advance";
 import { TransactionFormValues } from "@/lib/validations/transaction";
 
@@ -54,6 +53,7 @@ interface RecognitionItem {
   duplicateReason?: string;
   matchingTransactions?: Transaction[];
   advance?: Partial<AdvanceInfo>; // 編集時に設定された立替情報
+  transfer?: { from: string; to: string }; // 編集時に設定された振替情報（上書き用）
 }
 
 interface Transaction {
@@ -113,13 +113,19 @@ export function BatchImageRecognitionDialog({
           uploadedUrls.push(uploadedUrl);
 
           // 2. 画像から複数の取引を認識
-          const recognizedTransactions =
-            await recognizeBatchTransactionsFromImage(file, {
-              serviceHint:
-                selectedPaymentService !== "unknown"
-                  ? selectedPaymentService
-                  : undefined,
-            });
+          const batchFormData = new FormData();
+          batchFormData.append('image', file);
+          if (selectedPaymentService !== "unknown") {
+            batchFormData.append('options', JSON.stringify({ serviceHint: selectedPaymentService }));
+          }
+          const batchRes = await fetch('/api/ai/batch-vision', { method: 'POST', body: batchFormData });
+          if (batchRes.status === 429) throw new Error('RATE_LIMIT_EXCEEDED');
+          if (!batchRes.ok) throw new Error('画像から取引情報を認識できませんでした');
+          const rawTransactions: RecognizedTransaction[] = await batchRes.json();
+          const recognizedTransactions = rawTransactions.map(t => ({
+            ...t,
+            date: t.date ? new Date(t.date as unknown as string) : null,
+          }));
 
           // 認識された取引を追加
           allRecognizedTransactions.push(...recognizedTransactions);
@@ -240,15 +246,32 @@ export function BatchImageRecognitionDialog({
             : undefined);
 
         // 立替情報を保存
-        const advance = data.hasAdvance && data.advance
-          ? {
-              type: data.advance.type,
-              totalAmount: data.advance.totalAmount,
-              advanceAmount: data.advance.advanceAmount,
-              personalAmount: data.advance.personalAmount,
-              memo: data.advance.memo,
-            }
-          : undefined;
+        const advance =
+          data.hasAdvance && data.advance
+            ? {
+                type: data.advance.type,
+                totalAmount: data.advance.totalAmount,
+                advanceAmount: data.advance.advanceAmount,
+                personalAmount: data.advance.personalAmount,
+                memo: data.advance.memo,
+              }
+            : undefined;
+
+        // 取引種別（収入/支出/振替）を isIncome/isTransfer から正しく反映
+        let suggestedCategory: { main: string; sub: string };
+        if (data.isTransfer) {
+          suggestedCategory = { main: "振替", sub: "口座間振替" };
+        } else if (data.isIncome) {
+          suggestedCategory = {
+            main: "収入",
+            sub: data.categoryMain === "収入" ? (data.categorySub || "その他") : "その他",
+          };
+        } else {
+          suggestedCategory = {
+            main: data.categoryMain,
+            sub: data.categorySub,
+          };
+        }
 
         return {
           ...item,
@@ -258,14 +281,12 @@ export function BatchImageRecognitionDialog({
             date: data.date,
             amount: data.amount,
             merchantName: data.description,
-            suggestedCategory: {
-              main: data.categoryMain,
-              sub: data.categorySub,
-            },
+            suggestedCategory,
             originalMerchantName:
               originalMerchantName || item.transaction.originalMerchantName,
           } as RecognizedTransaction,
-          advance, // 立替情報を保存
+          advance,
+          transfer: data.isTransfer && data.transfer ? data.transfer : undefined,
         };
       })
     );
@@ -301,8 +322,24 @@ export function BatchImageRecognitionDialog({
     const item = recognitionItems[editingIndex];
     if (!item) return undefined;
 
-    const { transaction, advance } = item;
+    const { transaction, advance, transfer } = item;
     const isIncome = transaction.suggestedCategory?.main === "収入" || false;
+    const isTransfer = transaction.suggestedCategory?.main === "振替" || false;
+
+    // 決済手段: 振替の場合は振替元、それ以外はpaymentServiceから。unknownの場合は選択済みサービスをフォールバック
+    const effectivePaymentService =
+      transaction.paymentService === "unknown" &&
+      selectedPaymentService !== "unknown"
+        ? selectedPaymentService
+        : transaction.paymentService;
+
+    // 振替情報: 編集で上書きされたもの > API認識結果
+    const transferInfo = transfer ?? transaction.transfer;
+    // 振替の場合は振替元（paymentMethod）、それ以外はeffectivePaymentServiceから
+    const paymentMethod =
+      isTransfer && transferInfo?.from
+        ? transferInfo.from
+        : getPaymentMethodFromService(effectivePaymentService);
 
     return {
       date: transaction.date || new Date(),
@@ -310,8 +347,9 @@ export function BatchImageRecognitionDialog({
       categoryMain: transaction.suggestedCategory?.main || "",
       categorySub: transaction.suggestedCategory?.sub || "",
       description: transaction.merchantName || "",
-      paymentMethod: getPaymentMethodFromService(transaction.paymentService),
+      paymentMethod,
       isIncome,
+      isTransfer,
       hasAdvance: !!advance,
       advance: advance
         ? {
@@ -322,11 +360,10 @@ export function BatchImageRecognitionDialog({
             memo: advance.memo || "",
           }
         : undefined,
-      // 画像から読み取った元の店舗名をメモ欄に表示
+      transfer: transferInfo,
       memo: transaction.originalMerchantName
         ? `元の店舗名: ${transaction.originalMerchantName}`
         : "",
-      // 元の店舗名を保持（キーワード入力欄用）
       originalMerchantName: transaction.originalMerchantName || undefined,
     };
   };
@@ -345,11 +382,40 @@ export function BatchImageRecognitionDialog({
 
     try {
       const transactionsData: TransactionInput[] = selectedItems.map((item) => {
-        const { transaction, advance } = item;
+        const { transaction, advance, transfer } = item;
 
-        // カテゴリーから収入/支出を判定
+        const isTransfer =
+          transaction.suggestedCategory?.main === "振替" || false;
         const isIncome =
           transaction.suggestedCategory?.main === "収入" || false;
+
+        // 決済手段: unknownの場合は選択済みサービスをフォールバック（その他に変わらないように）
+        const effectivePaymentService =
+          transaction.paymentService === "unknown" &&
+          selectedPaymentService !== "unknown"
+            ? selectedPaymentService
+            : transaction.paymentService;
+        const basePaymentMethod =
+          getPaymentMethodFromService(effectivePaymentService);
+
+        // 振替情報: 編集で上書き > API認識結果。振替の場合はpaymentMethod=振替元、transfer必須
+        const transferInfo = transfer ?? transaction.transfer;
+        const hasFromAndTo =
+          transferInfo &&
+          transferInfo.from &&
+          transferInfo.to &&
+          transferInfo.from !== transferInfo.to;
+        // 振替だが情報が不完全な場合: 振替元を補完して振替先を"other"に（後で編集可能）
+        const inferredFrom = (transferInfo?.from || basePaymentMethod) as string;
+        const fallbackTransfer =
+          isTransfer && !hasFromAndTo && inferredFrom !== "other"
+            ? { from: inferredFrom, to: "other" as const }
+            : undefined;
+        const finalTransfer = hasFromAndTo
+          ? transferInfo
+          : fallbackTransfer;
+        const isTransferWithValidData =
+          isTransfer && (hasFromAndTo || !!fallbackTransfer);
 
         return {
           date: transaction.date || new Date(),
@@ -359,17 +425,19 @@ export function BatchImageRecognitionDialog({
             sub: "その他",
           },
           description: transaction.merchantName || "",
-          paymentMethod: getPaymentMethodFromService(
-            transaction.paymentService
-          ),
+          paymentMethod: isTransferWithValidData
+            ? (finalTransfer!.from as string)
+            : basePaymentMethod,
           isIncome,
-          // 立替情報を含める
+          isTransfer: isTransferWithValidData,
+          transfer: finalTransfer as TransferInfo | undefined,
           advance: advance
             ? {
                 type: advance.type || null,
                 totalAmount: advance.totalAmount || transaction.amount || 0,
                 advanceAmount: advance.advanceAmount || 0,
-                personalAmount: advance.personalAmount || transaction.amount || 0,
+                personalAmount:
+                  advance.personalAmount || transaction.amount || 0,
                 memo: advance.memo,
               }
             : undefined,
@@ -448,6 +516,7 @@ export function BatchImageRecognitionDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="olive">三井住友OLIVE</SelectItem>
+                  <SelectItem value="smbc_bank">三井住友銀行</SelectItem>
                   <SelectItem value="sony">ソニー銀行</SelectItem>
                   <SelectItem value="dpayment">d払い</SelectItem>
                   <SelectItem value="dcard">dカード</SelectItem>
@@ -463,28 +532,21 @@ export function BatchImageRecognitionDialog({
             </div>
           )}
 
-          {/* 画像アップロードエリア */}
+          {/* 画像アップロードエリア（認識中はゾーン内で統一ローディング表示） */}
           {recognitionItems.length === 0 && (
             <ImageUploadZone
               onUpload={handleImageUpload}
               maxFiles={10}
               multiple={true}
               isRecognizing={isRecognizing}
+              recognitionProgress={
+                recognitionProgress &&
+                recognitionProgress.current > 0 &&
+                recognitionProgress.total > 0
+                  ? recognitionProgress
+                  : undefined
+              }
             />
-          )}
-
-          {/* 認識中 */}
-          {isRecognizing && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center space-y-4">
-                <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  {recognitionProgress
-                    ? `画像を認識しています... (${recognitionProgress.current}/${recognitionProgress.total}枚目)`
-                    : "画像から取引を認識しています..."}
-                </p>
-              </div>
-            </div>
           )}
 
           {/* エラー */}
@@ -549,6 +611,14 @@ export function BatchImageRecognitionDialog({
                     isDuplicate={item.isDuplicate}
                     duplicateReason={item.duplicateReason}
                     matchingTransactions={item.matchingTransactions}
+                    advance={item.advance}
+                    inferredType={
+                      item.transaction.suggestedCategory?.main === "振替"
+                        ? "transfer"
+                        : item.transaction.suggestedCategory?.main === "収入"
+                        ? "income"
+                        : "expense"
+                    }
                     onToggleSelect={() => toggleSelection(index)}
                     onEdit={() => handleItemClick(index)}
                   />

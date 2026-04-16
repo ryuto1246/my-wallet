@@ -153,6 +153,9 @@ export const getTransactions = async (
     if (filter?.isIncome !== undefined) {
       q = query(q, where('isIncome', '==', filter.isIncome));
     }
+    if (filter?.paymentMethod) {
+      q = query(q, where('paymentMethod', '==', filter.paymentMethod));
+    }
     
     // ページネーション
     if (lastDoc) {

@@ -7,14 +7,15 @@ import { AdvanceInfo } from './advance';
 import { CalendarLink } from './calendar';
 
 export const PaymentMethod = {
-  OLIVE: 'olive',           // 三井住友OLIVE（クレジットカード）
-  SMBC_BANK: 'smbc_bank',   // 三井住友銀行
-  SONY_BANK: 'sony_bank',   // ソニー銀行
-  D_PAYMENT: 'd_payment',   // d払い
-  D_CARD: 'd_card',         // dカード
-  PAYPAY: 'paypay',         // PayPay
-  CASH: 'cash',             // 現金
-  OTHER: 'other',           // その他
+  OLIVE: 'olive',                 // 三井住友OLIVE（クレジットカード）
+  SMBC_BANK: 'smbc_bank',         // 三井住友銀行
+  SONY_BANK: 'sony_bank',         // ソニー銀行
+  D_PAYMENT: 'd_payment',         // d払い
+  D_CARD: 'd_card',               // dカード
+  PAYPAY: 'paypay',               // PayPay
+  V_POINT_PAY: 'v_point_pay',     // V-Point Pay
+  CASH: 'cash',                   // 現金
+  OTHER: 'other',                 // その他
 } as const;
 
 export type PaymentMethodValue = typeof PaymentMethod[keyof typeof PaymentMethod];
@@ -92,6 +93,8 @@ export interface TransactionInput {
   description: string;
   paymentMethod: PaymentMethodValue | string;
   isIncome: boolean;
+  isTransfer?: boolean;
+  transfer?: TransferInfo;
   advance?: Partial<AdvanceInfo>;
   imageUrl?: string;
   memo?: string;

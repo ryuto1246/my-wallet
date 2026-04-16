@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   ArrowLeftRight,
   MoreVertical,
+  FileText,
 } from "lucide-react";
 
 interface PageHeaderProps {
@@ -29,6 +30,8 @@ interface PageHeaderProps {
   onImageClick?: () => void;
   showTransferButton?: boolean;
   onTransferClick?: () => void;
+  showInvoiceButton?: boolean;
+  onInvoiceClick?: () => void;
 }
 
 export function PageHeader({
@@ -40,6 +43,8 @@ export function PageHeader({
   onImageClick,
   showTransferButton = false,
   onTransferClick,
+  showInvoiceButton = false,
+  onInvoiceClick,
 }: PageHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-4 sm:mb-5 md:mb-6">
@@ -58,9 +63,22 @@ export function PageHeader({
       </div>
 
       {/* ボタンエリア */}
-      {(showAddButton || showImageButton || showTransferButton) && (
+      {(showAddButton || showImageButton || showTransferButton || showInvoiceButton) && (
         <div className="flex gap-2">
           {/* デスクトップ用ボタン */}
+          {showInvoiceButton && onInvoiceClick && (
+            <Button
+              onClick={onInvoiceClick}
+              size="default"
+              variant="outline"
+              className="hidden md:flex rounded-xl border-2 border-orange-200/80 bg-white/60
+                         backdrop-blur-xl hover:bg-orange-50/80 hover:border-orange-300/80
+                         transition-all duration-300 hover:scale-105 text-orange-700 font-semibold"
+            >
+              <FileText className="mr-2 h-5 w-5" />
+              親立替請求書
+            </Button>
+          )}
           {showImageButton && onImageClick && (
             <Button
               onClick={onImageClick}
@@ -116,6 +134,15 @@ export function PageHeader({
               align="end"
               className="w-48 bg-white/95 backdrop-blur-xl border-2 border-white/50 shadow-glass"
             >
+              {showInvoiceButton && onInvoiceClick && (
+                <DropdownMenuItem
+                  onClick={onInvoiceClick}
+                  className="flex items-center gap-2 cursor-pointer text-orange-700"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>親立替請求書</span>
+                </DropdownMenuItem>
+              )}
               {showAddButton && onAddClick && (
                 <DropdownMenuItem
                   onClick={onAddClick}

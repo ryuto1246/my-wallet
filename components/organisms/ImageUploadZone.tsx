@@ -28,6 +28,8 @@ interface ImageUploadZoneProps {
   onRemoveImage?: (index: number) => void;
   /** 認識中か */
   isRecognizing?: boolean;
+  /** 一括認識時の進捗（指定時は「○/○枚目」を表示） */
+  recognitionProgress?: { current: number; total: number };
 }
 
 export function ImageUploadZone({
@@ -37,6 +39,7 @@ export function ImageUploadZone({
   uploadedImages = [],
   onRemoveImage,
   isRecognizing = false,
+  recognitionProgress,
 }: ImageUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -151,7 +154,10 @@ export function ImageUploadZone({
               <>
                 <Loader2 className="h-12 w-12 text-muted-foreground animate-spin" />
                 <div className="text-sm text-muted-foreground">
-                  画像を認識中...
+                  画像を認識しています...
+                  {recognitionProgress &&
+                    recognitionProgress.total > 0 &&
+                    ` (${recognitionProgress.current}/${recognitionProgress.total}枚目)`}
                 </div>
               </>
             ) : (

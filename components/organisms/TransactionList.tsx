@@ -4,6 +4,8 @@
  * Liquid Glassスタイルを適用
  */
 
+"use client";
+
 import { GlassCard, Pagination } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -56,6 +58,7 @@ export function TransactionList({
   onDelete,
   onEdit,
 }: TransactionListProps) {
+
   return (
     <GlassCard
       variant="soft"
@@ -151,6 +154,7 @@ export function TransactionList({
               <div className="mt-4">
                 <Pagination
                   currentPage={currentPage}
+                  totalPages={totalPages}
                   hasNext={hasMore}
                   hasPrevious={hasPrevious}
                   onNextPage={onNextPage}
